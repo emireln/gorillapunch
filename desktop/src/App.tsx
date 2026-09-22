@@ -126,7 +126,7 @@ export function App() {
   };
   const syncReport = async () => {
     if (!report) return;
-    try { const scan = await window.gorillaPunch.scans.sync(report.scan.id); setLocalHistory(current => upsert(current, scan)); setReport(current => current ? { ...current, scan } : current); await refreshCloud(); notify('Report synced to Supabase.'); }
+    try { const scan = await window.gorillaPunch.scans.sync(report.scan.id); setLocalHistory(current => upsert(current, scan)); setReport(current => current ? { ...current, scan } : current); await refreshCloud(); notify('Report synced to cloud.'); }
     catch (error) { notify(errorMessage(error), 'error'); }
   };
 

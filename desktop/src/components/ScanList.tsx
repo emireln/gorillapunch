@@ -11,7 +11,7 @@ export function ScanList({ items, onOpen, empty = 'No punches yet.' }: { items: 
       <span className={`score-pill ${scoreBand(scan.score?.overall)}`}>{active ? <SpinnerGap className="spin" size={18}/> : scan.score?.overall ?? '—'}</span>
       <span className="scan-main"><strong>{host(scan.target_url)}</strong><small>{scan.target_url}</small></span>
       <span className={`status-text status-${scan.status}`}>{statusLabel(scan)}</span>
-      <span className="storage-icon" title={item.source === 'cloud' ? 'Supabase cloud' : 'Local SQLite'}>{item.source === 'cloud' ? <Cloud size={17}/> : <HardDrives size={17}/>}</span>
+      <span className="storage-icon" title={item.source === 'cloud' ? 'Cloud workspace' : 'Local workspace'}>{item.source === 'cloud' ? <Cloud size={17}/> : <HardDrives size={17}/>}</span>
       <time>{relativeDate(scan.created_at)}</time>
       <ArrowRight size={17}/>
     </button>;

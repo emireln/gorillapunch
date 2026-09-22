@@ -11,7 +11,7 @@ export function History({ items, onOpen }: { items: ScanItem[]; onOpen(item: Sca
     return matchesQuery && (!status || item.scan.status === status);
   }), [items, query, status]);
   return <div className="view">
-    <div className="page-heading"><div><span className="eyebrow">REPORT LIBRARY</span><h1>Punch history</h1><p>Local reports stay in SQLite. Cloud reports are read from your Supabase account.</p></div><span className="count-badge">{filtered.length}</span></div>
+    <div className="page-heading"><div><span className="eyebrow">REPORT LIBRARY</span><h1>Punch history</h1><p>Local reports stay on this device. Cloud reports are saved to your account.</p></div><span className="count-badge">{filtered.length}</span></div>
     <section className="panel"><div className="history-filters"><label><MagnifyingGlass size={18}/><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search by URL…"/></label><select value={status} onChange={event => setStatus(event.target.value)}><option value="">All statuses</option><option value="completed">Completed</option><option value="running">Running</option><option value="failed">Failed</option><option value="cancelled">Cancelled</option></select></div><ScanList items={filtered} onOpen={onOpen} empty="No reports match these filters."/></section>
   </div>;
 }
