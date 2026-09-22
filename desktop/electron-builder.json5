@@ -30,5 +30,5 @@
   portable: {
     artifactName: '${productName}-Portable-${version}-${arch}.${ext}'
   },
-  publish: [{ provider: 'github', owner: 'gorillapunch', repo: 'gorillapunch' }]
+  publish: [{ provider: 'github', owner: 'emireln', repo: 'gorillapunch' }]
 }
