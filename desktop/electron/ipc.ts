@@ -79,6 +79,8 @@ export function registerIpc(services: Services) {
     await shell.openExternal(url.href);
   });
   handle('system:check-updates', () => services.checkForUpdates());
+  handle('game:get-high-score', () => services.database.getGameHighScore());
+  handle<[number]>('game:save-score', (_event, score) => services.database.saveGameScore(Number(score) || 0));
 
   const send = (channel: string, value: unknown) => { if (!services.window.isDestroyed()) services.window.webContents.send(channel, value); };
   services.scans.on('progress', value => send('scans:progress', value));

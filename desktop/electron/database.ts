@@ -68,6 +68,12 @@ export class DesktopDatabase {
         id TEXT PRIMARY KEY,
         body TEXT NOT NULL CHECK(json_valid(body))
       );
+      CREATE TABLE IF NOT EXISTS desktop_game_scores (
+        id TEXT PRIMARY KEY,
+        score INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS desktop_game_scores_date ON desktop_game_scores(created_at DESC);
     `);
     await this.recoverInterruptedScans();
   }
@@ -197,6 +203,33 @@ export class DesktopDatabase {
   async removeWatcher(id: string) {
     await this.ready;
     await this.client.execute({ sql: 'DELETE FROM desktop_watchers WHERE id=?', args: [id] });
+  }
+
+  async saveGameScore(score: number): Promise<{ localBest: number; lastScore: number }> {
+    await this.ready;
+    const cleanScore = Math.max(0, Math.floor(score));
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    await this.client.execute({
+      sql: 'INSERT INTO desktop_game_scores(id, score, created_at) VALUES(?, ?, ?)',
+      args: [id, cleanScore, now],
+    });
+    const currentBestRaw = await this.getValue('game_high_score');
+    const currentBest = currentBestRaw ? parseInt(currentBestRaw, 10) || 0 : 0;
+    const nextBest = Math.max(currentBest, cleanScore);
+    await this.setValue('game_high_score', String(nextBest));
+    return { localBest: nextBest, lastScore: cleanScore };
+  }
+
+  async getGameHighScore(): Promise<number> {
+    await this.ready;
+    const currentBestRaw = await this.getValue('game_high_score');
+    if (currentBestRaw) return parseInt(currentBestRaw, 10) || 0;
+    const result = await this.client.execute('SELECT MAX(score) as best FROM desktop_game_scores');
+    if (result.rows.length && result.rows[0].best !== null) {
+      return Number(result.rows[0].best) || 0;
+    }
+    return 0;
   }
 
   async close() { await this.client.close(); }

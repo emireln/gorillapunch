@@ -7,9 +7,9 @@ export default defineConfig(({ mode }) => {
   const desktopEnv = loadEnv(mode, import.meta.dirname, '');
   const value = (desktopKey: string, rootKey: string, fallback = '') => desktopEnv[desktopKey] || rootEnv[rootKey] || fallback;
   const define = {
-    __GP_SUPABASE_URL__: JSON.stringify(value('VITE_GP_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL')),
-    __GP_SUPABASE_ANON_KEY__: JSON.stringify(value('VITE_GP_SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY')),
-    __GP_API_URL__: JSON.stringify(value('VITE_GP_API_URL', 'APP_URL', 'https://gorillapunch.run')),
+    __GP_SUPABASE_URL__: JSON.stringify(value('VITE_GP_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL', 'https://siuktrgrqxjrecvoqdek.supabase.co')),
+    __GP_SUPABASE_ANON_KEY__: JSON.stringify(value('VITE_GP_SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpdWt0cmdycXhqcmVjdm9xZGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MjgyNzUsImV4cCI6MjEwNTAwNDI3NX0.x3_ySfCdDAezadpABVFzoVSfktFSqCfE92qJdDtNE9I')),
+    __GP_API_URL__: JSON.stringify(value('VITE_GP_API_URL', 'APP_URL', 'https://www.gorillapunch.run')),
   };
   return {
     main: { define, build: { externalizeDeps: true, sourcemap: false, outDir: 'out/main', rollupOptions: { input: { index: resolve(import.meta.dirname, 'electron/main.ts') } } } },

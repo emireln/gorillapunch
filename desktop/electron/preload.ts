@@ -52,6 +52,10 @@ const api: DesktopAPI = {
     openExternal: url => ipcRenderer.invoke('system:open-external', url),
     checkForUpdates: () => ipcRenderer.invoke('system:check-updates'),
   },
+  game: {
+    getHighScore: () => ipcRenderer.invoke('game:get-high-score'),
+    saveScore: score => ipcRenderer.invoke('game:save-score', score),
+  },
 };
 
 contextBridge.exposeInMainWorld('gorillaPunch', api);

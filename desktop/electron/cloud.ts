@@ -4,15 +4,43 @@ import type { DesktopReport, DesktopScan, CloudCredentials, CloudState, SignUpCr
 import type { DesktopDatabase } from './database';
 
 const SESSION_KEY = 'cloud_session_v1';
+const DEFAULT_SUPABASE_URL = 'https://siuktrgrqxjrecvoqdek.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpdWt0cmdycXhqcmVjdm9xZGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MjgyNzUsImV4cCI6MjEwNTAwNDI3NX0.x3_ySfCdDAezadpABVFzoVSfktFSqCfE92qJdDtNE9I';
+const DEFAULT_API_URL = 'https://www.gorillapunch.run';
+
+function resolveCloudTarget(): { url: string; anonKey: string; apiUrl: string } {
+  const urlCandidate = (typeof __GP_SUPABASE_URL__ === 'string' && __GP_SUPABASE_URL__)
+    || process.env.VITE_GP_SUPABASE_URL
+    || process.env.NEXT_PUBLIC_SUPABASE_URL
+    || DEFAULT_SUPABASE_URL;
+
+  const keyCandidate = (typeof __GP_SUPABASE_ANON_KEY__ === 'string' && __GP_SUPABASE_ANON_KEY__)
+    || process.env.VITE_GP_SUPABASE_ANON_KEY
+    || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    || DEFAULT_SUPABASE_ANON_KEY;
+
+  const apiCandidate = (typeof __GP_API_URL__ === 'string' && __GP_API_URL__)
+    || process.env.VITE_GP_API_URL
+    || process.env.APP_URL
+    || DEFAULT_API_URL;
+
+  return {
+    url: validCloudConfig(urlCandidate, keyCandidate) ? urlCandidate : '',
+    anonKey: validCloudConfig(urlCandidate, keyCandidate) ? keyCandidate : '',
+    apiUrl: safeApiUrl(apiCandidate),
+  };
+}
 
 export class CloudService {
   private client: SupabaseClient | null = null;
   private currentSession: Session | null = null;
-  private readonly apiUrl = safeApiUrl(__GP_API_URL__);
+  private readonly apiUrl: string;
 
   constructor(private readonly database: DesktopDatabase) {
-    if (validCloudConfig(__GP_SUPABASE_URL__, __GP_SUPABASE_ANON_KEY__)) {
-      this.client = createClient(__GP_SUPABASE_URL__, __GP_SUPABASE_ANON_KEY__, {
+    const config = resolveCloudTarget();
+    this.apiUrl = config.apiUrl;
+    if (config.url && config.anonKey) {
+      this.client = createClient(config.url, config.anonKey, {
         auth: { persistSession: false, autoRefreshToken: true, detectSessionInUrl: false },
         global: { headers: { 'X-Client-Info': 'gorillapunch-desktop/1.0' } },
       });

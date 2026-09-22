@@ -28,9 +28,9 @@ jobs:
       - run: npm install
       - run: npm run desktop:package
         env:
-          VITE_GP_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
-          VITE_GP_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          VITE_GP_API_URL: ${{ vars.APP_URL }}
+          VITE_GP_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || 'https://siuktrgrqxjrecvoqdek.supabase.co' }}
+          VITE_GP_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpdWt0cmdycXhqcmVjdm9xZGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MjgyNzUsImV4cCI6MjEwNTAwNDI3NX0.x3_ySfCdDAezadpABVFzoVSfktFSqCfE92qJdDtNE9I' }}
+          VITE_GP_API_URL: ${{ vars.APP_URL || 'https://www.gorillapunch.run' }}
           CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
       - uses: actions/upload-artifact@v4

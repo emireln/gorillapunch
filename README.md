@@ -15,7 +15,7 @@ Run in-depth browser audits, accessibility checks, Core Web Vitals measurements,
 ### ⚡ Quick Install (PowerShell)
 Run this single command in Windows PowerShell (or Windows Terminal) — no manual browsing required:
 ```powershell
-irm https://gorillapunch.run/install.ps1 | iex
+irm https://www.gorillapunch.run/install.ps1 | iex
 ```
 
 ### Manual Downloads

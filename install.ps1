@@ -1,7 +1,7 @@
 # GorillaPunch Windows Installer Bootstrap
 # Usage:
-#   irm https://gorillapunch.run/install.ps1 | iex
-#   irm https://gorillapunch.run/install.ps1 | & { [scriptblock]::Create($input) } -Silent
+#   irm https://www.gorillapunch.run/install.ps1 | iex
+#   irm https://www.gorillapunch.run/install.ps1 | & { [scriptblock]::Create($input) } -Silent
 
 [CmdletBinding()]
 param(
@@ -15,6 +15,11 @@ $appName = "GorillaPunch"
 $releaseApiUrl = "https://api.github.com/repos/emireln/gorillapunch/releases/latest"
 $fallbackDownloadUrl = "https://github.com/emireln/gorillapunch/releases/latest/download/GorillaPunch-Setup.exe"
 
+# Bundled public client credentials for GorillaPunch Cloud Workspace
+$supabaseUrl = "https://siuktrgrqxjrecvoqdek.supabase.co"
+$supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpdWt0cmdycXhqcmVjdm9xZGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MjgyNzUsImV4cCI6MjEwNTAwNDI3NX0.x3_ySfCdDAezadpABVFzoVSfktFSqCfE92qJdDtNE9I"
+$apiUrl = "https://www.gorillapunch.run"
+
 Write-Host ""
 Write-Host "  🥊 GorillaPunch — Windows Desktop Setup" -ForegroundColor Magenta
 Write-Host "  =========================================" -ForegroundColor DarkGray
@@ -22,6 +27,33 @@ Write-Host "  =========================================" -ForegroundColor DarkGr
 try {
   $tempDir = [System.IO.Path]::GetTempPath()
   $installerPath = Join-Path $tempDir "GorillaPunch-Setup.exe"
+
+  # Pre-configure user cloud workspace settings and environment
+  try {
+    $appDataDir = Join-Path $env:APPDATA "gorillapunch"
+    if (-not (Test-Path $appDataDir)) {
+      New-Item -ItemType Directory -Path $appDataDir -Force | Out-Null
+    }
+    $cloudConfigFile = Join-Path $appDataDir "cloud-config.json"
+    $configPayload = @{
+      supabaseUrl = $supabaseUrl
+      supabaseAnonKey = $supabaseAnonKey
+      apiUrl = $apiUrl
+    } | ConvertTo-Json -Compress
+    [System.IO.File]::WriteAllText($cloudConfigFile, $configPayload, [System.Text.Encoding]::UTF8)
+
+    [Environment]::SetEnvironmentVariable("NEXT_PUBLIC_SUPABASE_URL", $supabaseUrl, "User")
+    [Environment]::SetEnvironmentVariable("NEXT_PUBLIC_SUPABASE_ANON_KEY", $supabaseAnonKey, "User")
+    [Environment]::SetEnvironmentVariable("VITE_GP_SUPABASE_URL", $supabaseUrl, "User")
+    [Environment]::SetEnvironmentVariable("VITE_GP_SUPABASE_ANON_KEY", $supabaseAnonKey, "User")
+
+    $env:NEXT_PUBLIC_SUPABASE_URL = $supabaseUrl
+    $env:NEXT_PUBLIC_SUPABASE_ANON_KEY = $supabaseAnonKey
+    $env:VITE_GP_SUPABASE_URL = $supabaseUrl
+    $env:VITE_GP_SUPABASE_ANON_KEY = $supabaseAnonKey
+  } catch {
+    # Non-fatal if configuration writing encounters restrictions
+  }
 
   Write-Host "  [1/3] Resolving latest release..." -ForegroundColor Cyan
   $downloadUrl = $fallbackDownloadUrl

@@ -257,6 +257,124 @@ main { min-width: 0; overflow: auto; background: radial-gradient(circle at 75% -
 .boot-mark { display: grid; place-items: center; width: 54px; height: 54px; color: var(--content-on-vibrant); background: var(--accent-vibrant); border-radius: var(--radius-xl); font-weight: 800; box-shadow: var(--shadow-high); }
 .loading-view { display: grid; min-height: 50vh; place-items: center; color: var(--content-disabled); }
 
+/* Desktop Arcade Mini-game */
+.desktop-arcade-card {
+  position: relative;
+  overflow: hidden;
+  margin-top: 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-low);
+  display: grid;
+  gap: 0;
+}
+
+.desktop-arcade-card.running-mode {
+  border-color: var(--border-accent-vibrant);
+  box-shadow: 0 0 0 1px var(--tint-accent), var(--shadow-mid);
+}
+
+.desktop-arcade-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.arcade-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.arcade-title-group strong {
+  color: var(--content-headings);
+  font-size: 13px;
+}
+
+.arcade-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  background: var(--tint-accent);
+  color: var(--content-accent);
+  border: 1px solid var(--border-accent-muted);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.arcade-pill.active-pulse {
+  background: var(--accent-vibrant);
+  color: #fff;
+  border-color: var(--accent-vibrant);
+  animation: arcadePulse 2s ease-in-out infinite;
+}
+
+@keyframes arcadePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(117, 83, 255, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(117, 83, 255, 0); }
+}
+
+.arcade-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.arcade-tip {
+  color: var(--content-disabled);
+  font-size: 11px;
+}
+
+.desktop-arcade-canvas-wrap {
+  height: 190px;
+  width: 100%;
+  position: relative;
+  background: #141119;
+}
+
+.arcade-launcher-bar {
+  margin-top: 14px;
+}
+
+.arcade-launch-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 16px;
+  background: var(--bg-primary);
+  border: 1px dashed var(--border-neutral-muted);
+  border-radius: var(--radius-lg);
+  color: var(--content-secondary);
+  transition: all var(--motion-fast) ease;
+  cursor: pointer;
+}
+
+.arcade-launch-btn:hover {
+  border-color: var(--border-accent-vibrant);
+  color: var(--content-headings);
+  background: var(--tint-neutral);
+}
+
+.arcade-launch-btn span {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.arcade-launch-btn small {
+  margin-left: auto;
+  color: var(--content-disabled);
+  font-size: 10px;
+}
+
 @media (max-width: 1120px) {
   .titlebar { grid-template-columns: 200px minmax(220px, 380px) 1fr auto; }
   .desktop-body { grid-template-columns: 190px minmax(0, 1fr); }

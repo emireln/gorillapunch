@@ -139,6 +139,10 @@ export interface DesktopAPI {
     openExternal(url: string): Promise<void>;
     checkForUpdates(): Promise<string>;
   };
+  game: {
+    getHighScore(): Promise<number>;
+    saveScore(score: number): Promise<{ localBest: number; lastScore: number }>;
+  };
 }
 
 export type { Finding, Metric, PageRecord, ScanMode };
