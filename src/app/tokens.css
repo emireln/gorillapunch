@@ -1,0 +1,316 @@
+/* GorillaPunch design tokens — ChonkUI.
+   Colour, spacing, radius, type, elevation and motion live here.
+   Component styles consume these names; they do not invent a second palette. */
+
+:root,
+html[data-theme='dark'] {
+  --bg-primary: #2E2936;
+  --bg-secondary: #24202B;
+  --bg-tertiary: #1B1821;
+  --bg-overlay: #393442;
+
+  --content-headings: #FFFFFF;
+  --content-primary: #E7E5EA;
+  --content-secondary: #B5B0BD;
+  --content-disabled: #958E9F;
+  --content-accent: #ABA8F8;
+  --content-danger: #F6938C;
+  --content-warning: #FFCE00;
+  --content-success: #5ECE73;
+  --content-promotion: #F78A92;
+  --content-on-vibrant: #FFFFFF;
+
+  --border-primary: #141119;
+  --border-secondary: #1B1821;
+  --border-neutral-muted: #534D5E;
+  --border-accent-vibrant: #7553FF;
+  --border-accent-muted: #4C39A5;
+
+  --accent-vibrant: #7553FF;
+  --accent-muted: #7553FF1A;
+
+  --danger-vibrant: #FF002B;
+  --warning-vibrant: #FFCE00;
+  --success-vibrant: #00F261;
+  --promotion-vibrant: #E5484D;
+
+  --tint-neutral: #FFFFFF0D;
+  --tint-accent: #7553FF1F;
+  --tint-danger: #FF002B1F;
+  --tint-warning: #FFCE001F;
+  --tint-success: #00F2611F;
+  --tint-promotion: #E5484D1F;
+
+  --btn-primary-surface: #7553FF;
+  --btn-primary-chonk: #120539;
+  --btn-primary-text: #FFFFFF;
+  --btn-secondary-surface: #45404F;
+  --btn-secondary-chonk: #08070C;
+  --btn-secondary-text: #FFFFFF;
+  --btn-danger-surface: #FF002B;
+  --btn-danger-chonk: #5B0000;
+  --btn-danger-text: #FFFFFF;
+
+  --input-bg: #0000181A;
+  --input-chonk: #141119;
+  --input-border: #141119;
+
+  --focus-ring: #7553FF;
+  --chonk-highlight: rgb(255 255 255 / 0.16);
+
+  /* Same-shape lips: offset only, never spread. Spread draws a halo that reads as a flat slab. */
+  --shadow-low: 0 2px 0 0 rgb(0 0 0 / 0.45);
+  --shadow-medium: 0 3px 0 0 rgb(0 0 0 / 0.4);
+  --shadow-high: 0 4px 0 0 rgb(0 0 0 / 0.5);
+
+  --chart-1: #7553FF;
+  --chart-2: #5D3EB2;
+  --chart-3: #50219C;
+  --chart-4: #7C2282;
+  --chart-5: #B82D90;
+  --chart-6: #F0369A;
+  --chart-7: #FA6769;
+  --chart-8: #FF9838;
+  --chart-9: #FFD00E;
+  --chart-10: #BACE05;
+  --chart-11: #5ECE73;
+  --chart-good: #5ECE73;
+  --chart-meh: #FFCE00;
+  --chart-bad: #FF002B;
+  --chart-release: #A49EAE;
+  --chart-neutral: #898294;
+
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F8F8F9;
+  --bg-tertiary: #F0F0F2;
+  --bg-overlay: #FFFFFF;
+
+  --content-headings: #181225;
+  --content-primary: #302E36;
+  --content-secondary: #6A6772;
+  --content-disabled: #878490;
+  --content-accent: #653DE9;
+  --content-danger: #D50000;
+  --content-warning: #A45200;
+  --content-success: #008900;
+  --content-promotion: #C92A2A;
+  --content-on-vibrant: #FFFFFF;
+
+  --border-primary: #DAD9DE;
+  --border-secondary: #E6E6E9;
+  --border-neutral-muted: #DAD9DE;
+  --border-accent-vibrant: #7553FF;
+  --border-accent-muted: #D4D3FF;
+
+  --accent-vibrant: #7553FF;
+  --accent-muted: #0008F012;
+
+  --danger-vibrant: #FF002B;
+  --warning-vibrant: #FFCE00;
+  --success-vibrant: #00F261;
+  --promotion-vibrant: #E5484D;
+
+  --tint-neutral: #0000200F;
+  --tint-accent: #0008F012;
+  --tint-danger: #F828081C;
+  --tint-warning: #E0B01030;
+  --tint-success: #00B8001C;
+  --tint-promotion: #E5484D1A;
+
+  --btn-primary-surface: #7553FF;
+  --btn-primary-chonk: #5827D6;
+  --btn-primary-text: #FFFFFF;
+  --btn-secondary-surface: #FFFFFF;
+  --btn-secondary-chonk: #B7B4BE;
+  --btn-secondary-text: #181225;
+  --btn-danger-surface: #FF002B;
+  --btn-danger-chonk: #C10000;
+  --btn-danger-text: #FFFFFF;
+
+  --input-bg: #10103008;
+  --input-chonk: #DAD9DE;
+  --input-border: #DAD9DE;
+
+  --focus-ring: #7553FF;
+  --chonk-highlight: rgb(255 255 255 / 0.5);
+
+  --shadow-low: 0 2px 0 0 rgb(16 16 48 / 0.16);
+  --shadow-medium: 0 3px 0 0 rgb(16 16 48 / 0.18);
+  --shadow-high: 0 4px 0 0 rgb(16 16 48 / 0.22);
+
+  --chart-2: #5533B2;
+  --chart-3: #3A1873;
+  --chart-11: #67C800;
+  --chart-good: #58CD6F;
+  --chart-bad: #C10000;
+  --chart-release: #878490;
+  --chart-neutral: #A29FAA;
+
+  color-scheme: light;
+}
+
+/* Names already used across the product, pointed at the ChonkUI palette. */
+:root,
+html[data-theme='dark'],
+html[data-theme='light'] {
+  --bg: var(--bg-secondary);
+  --sidebar-bg: var(--bg-primary);
+  --surface-1: var(--bg-primary);
+  --surface-2: var(--bg-secondary);
+  --surface-3: var(--bg-tertiary);
+  --active-surface: var(--tint-accent);
+
+  --border-subtle: var(--border-secondary);
+  --border-default: var(--border-neutral-muted);
+  --border-strong: var(--border-neutral-muted);
+  --line: var(--border-primary);
+  --line-subtle: var(--border-secondary);
+  --line-strong: var(--border-neutral-muted);
+
+  --text-primary: var(--content-headings);
+  --text-secondary: var(--content-secondary);
+  --text-muted: var(--content-disabled);
+  --text-disabled: var(--content-disabled);
+
+  --hover-subtle: var(--tint-neutral);
+  --focus-line: var(--focus-ring);
+
+  --accent: var(--accent-vibrant);
+  --accent-hover: #8668ff;
+  --accent-active: #653DE9;
+  --accent-contrast: var(--content-on-vibrant);
+  --brand: var(--accent-vibrant);
+
+  --control-bg: var(--btn-secondary-surface);
+  --control-hover: var(--bg-overlay);
+  --control-active: var(--bg-tertiary);
+
+  --danger: var(--content-danger);
+  --danger-soft: var(--tint-danger);
+  --warning: var(--content-warning);
+  --success: var(--content-success);
+
+  --shadow-float: var(--shadow-medium);
+  --shadow-overlay: var(--shadow-high);
+
+  --btn-chonk-color: var(--btn-secondary-chonk);
+}
+
+:root {
+  --space-0: 0px;
+  --space-2xs: 2px;
+  --space-xs: 4px;
+  --space-sm: 6px;
+  --space-md: 8px;
+  --space-lg: 12px;
+  --space-xl: 16px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+
+  --space-1: var(--space-xs);
+  --space-2: var(--space-md);
+  --space-3: var(--space-lg);
+  --space-4: var(--space-xl);
+  --space-5: 20px;
+  --space-6: var(--space-2xl);
+  --space-7: var(--space-3xl);
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+
+  --radius-0: 0px;
+  --radius-2xs: 3px;
+  --radius-xs: 4px;
+  --radius-sm: 5px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-pill: 999px;
+
+  --control-h: 36px;
+  --control-h-touch: 44px;
+  --control-h-sm: 32px;
+  --card-padding: 16px;
+  --icon-btn: 32px;
+  --topbar-h: 53px;
+  --rail-w: 74px;
+  --drawer-w: 190px;
+  --sidebar-w: var(--drawer-w);
+  --sidebar-w-collapsed: 0px;
+  --content-max: 1440px;
+
+  --motion-fast: 120ms;
+  --motion-moderate: 160ms;
+  --motion-slow: 240ms;
+  --motion-micro: var(--motion-fast);
+  --motion-standard: var(--motion-moderate);
+  --motion-page: var(--motion-slow);
+  --ease-snap: cubic-bezier(0.8, -0.4, 0.5, 1);
+  --ease-smooth: cubic-bezier(0.72, 0, 0.16, 1);
+  --ease-enter: cubic-bezier(0.24, 1, 0.32, 1);
+  --ease-exit: cubic-bezier(0.64, 0, 0.8, 0);
+  --ease: var(--ease-smooth);
+
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-title: 20px;
+  --text-page: 24px;
+  --text-metric: 32px;
+  --text-display: 40px;
+}
+
+@property --button-lift {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 2px;
+}
+
+body {
+  min-height: 100dvh;
+  background: var(--bg-secondary);
+  color: var(--content-primary);
+  font-family: var(--font-sans), Rubik, 'Avenir Next', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { color: var(--content-on-vibrant); background: var(--accent-vibrant); }
+
+h1, h2, h3, h4 { color: var(--content-headings); font-weight: 500; letter-spacing: 0; text-wrap: balance; }
+h1 { font-size: 24px; line-height: 1.2; }
+h2 { font-size: 20px; line-height: 1.2; }
+h3 { font-size: 16px; line-height: 1.4; }
+h4 { font-size: 14px; line-height: 1.4; }
+p { color: var(--content-secondary); }
+
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+.mono, code, pre, kbd {
+  font-family: var(--font-mono), 'Roboto Mono', Monaco, Consolas, 'Courier New', monospace;
+  font-variant-ligatures: none;
+  font-variant-numeric: tabular-nums;
+}
+
+* { scrollbar-color: var(--border-neutral-muted) transparent; scrollbar-width: thin; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--border-neutral-muted); border: 3px solid transparent; background-clip: content-box; border-radius: var(--radius-sm); }
+*::-webkit-scrollbar-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

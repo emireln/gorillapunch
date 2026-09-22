@@ -1,0 +1,34 @@
+{
+  appId: 'run.gorillapunch.desktop',
+  productName: 'GorillaPunch',
+  copyright: 'Copyright © GorillaPunch',
+  directories: { output: 'dist', buildResources: 'build' },
+  files: ['out/**/*', 'package.json'],
+  extraResources: [
+    { from: 'build/icon.png', to: 'build/icon.png' },
+    { from: 'build/tray-icon.png', to: 'build/tray-icon.png' },
+    { from: 'build/tray-active.png', to: 'build/tray-active.png' },
+    { from: 'build/playwright', to: 'playwright', filter: ['**/*'] }
+  ],
+  asar: true,
+  asarUnpack: ['node_modules/@libsql/**/*', 'node_modules/libsql/**/*'],
+  npmRebuild: false,
+  win: {
+    icon: 'build/icon.png',
+    target: ['nsis', 'portable'],
+    artifactName: '${productName}-${version}-${arch}.${ext}'
+  },
+  nsis: {
+    artifactName: '${productName}-Setup-${version}-${arch}.${ext}',
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: 'GorillaPunch',
+    deleteAppDataOnUninstall: false
+  },
+  portable: {
+    artifactName: '${productName}-Portable-${version}-${arch}.${ext}'
+  },
+  publish: [{ provider: 'github', owner: 'gorillapunch', repo: 'gorillapunch' }]
+}

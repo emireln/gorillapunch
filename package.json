@@ -1,0 +1,38 @@
+{
+  "name": "gorillapunch-engine",
+  "version": "1.16.0",
+  "private": false,
+  "type": "module",
+  "description": "GorillaPunch Desktop Application & Launch Readiness Engine",
+  "author": "GorillaPunch <gorillapunch.run@gmail.com>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.x"
+  },
+  "workspaces": [
+    "desktop"
+  ],
+  "scripts": {
+    "desktop:dev": "npm run dev --workspace gorillapunch-desktop",
+    "desktop:check": "npm run check --workspace gorillapunch-desktop",
+    "desktop:build": "npm run build --workspace gorillapunch-desktop",
+    "desktop:package": "npm run package:win --workspace gorillapunch-desktop",
+    "desktop:audit": "tsx desktop/electron/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@libsql/client": "0.18.0",
+    "cheerio": "1.2.0",
+    "ipaddr.js": "2.5.0",
+    "playwright": "1.63.0",
+    "tsx": "4.23.13",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.1",
+    "typescript": "6.0.3",
+    "vitest": "5.0.0"
+  }
+}

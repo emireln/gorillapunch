@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+.npm-cache/
+
+# Build and distribution artifacts
+desktop/dist/
+desktop/out/
+desktop/build/playwright/
+*.tsbuildinfo
+*.log
+
+# Environment files
+.env*
+!.env.example
+desktop/.env*
+!desktop/.env.example
+
+# OS files
+.DS_Store
+Thumbs.db

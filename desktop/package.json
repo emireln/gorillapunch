@@ -1,0 +1,48 @@
+{
+  "name": "gorillapunch-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./out/main/index.js",
+  "description": "Private, local-first launch-readiness audits for Windows",
+  "author": "GorillaPunch <gorillapunch.run@gmail.com>",
+  "homepage": "https://gorillapunch.run",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "build": "npm run typecheck && electron-vite build",
+    "check": "npm run build && npm run audit:bundle",
+    "audit:bundle": "node scripts/audit-bundle.mjs",
+    "assets": "node scripts/generate-assets.mjs",
+    "prepare:playwright": "node scripts/prepare-playwright.mjs",
+    "package:win": "npm run prepare:playwright && npm run build && electron-builder --win",
+    "package:dir": "npm run build && electron-builder --dir"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@libsql/client": "0.18.0",
+    "@phosphor-icons/react": "2.1.10",
+    "@supabase/supabase-js": "2.116.0",
+    "cheerio": "1.2.0",
+    "chokidar": "4.0.3",
+    "electron-updater": "6.8.9",
+    "ipaddr.js": "2.5.0",
+    "playwright": "1.63.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.1.1",
+    "electron": "44.4.3",
+    "electron-builder": "26.16.1",
+    "electron-vite": "5.0.0",
+    "typescript": "6.0.3",
+    "vite": "7.3.6"
+  }
+}
