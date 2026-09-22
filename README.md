@@ -10,10 +10,15 @@ Run in-depth browser audits, accessibility checks, Core Web Vitals measurements,
 
 ---
 
-## 🚀 Download for Windows
+## 🚀 Download & Install for Windows
 
-Get the latest official build for Windows 10/11 (x64 / ARM64):
+### ⚡ Quick Install (PowerShell)
+Run this single command in Windows PowerShell (or Windows Terminal) — no manual browsing required:
+```powershell
+irm https://gorillapunch.run/install.ps1 | iex
+```
 
+### Manual Downloads
 * **[Download GorillaPunch Setup (.exe)](https://github.com/emireln/gorillapunch/releases/latest/download/GorillaPunch-Setup.exe)** — *Installer with automatic system tray integration.*
 * **[Download Portable Edition (.exe)](https://github.com/emireln/gorillapunch/releases/latest/download/GorillaPunch-portable.exe)** — *Single standalone executable, no installation needed.*
 

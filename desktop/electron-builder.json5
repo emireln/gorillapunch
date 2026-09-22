@@ -25,7 +25,9 @@
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
     shortcutName: 'GorillaPunch',
-    deleteAppDataOnUninstall: false
+    deleteAppDataOnUninstall: false,
+    installerSidebar: 'build/installer-sidebar.bmp',
+    uninstallerSidebar: 'build/installer-sidebar.bmp'
   },
   portable: {
     artifactName: '${productName}-Portable-${version}-${arch}.${ext}'
