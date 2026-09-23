@@ -60,7 +60,8 @@ export function createSafeTransport(limits: NetworkLimits): Transport {
           },
         }, res => {
           const headers = Object.fromEntries(Object.entries(res.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join('\n') : v || '']));
-          if (Number(headers['content-length']) > limits.maxBytes) { res.destroy(); reject(new Error('RESPONSE_TOO_LARGE')); return; }
+          // HEAD has no response body. A large downloadable file is still a valid link.
+          if (options.method !== 'HEAD' && Number(headers['content-length']) > limits.maxBytes) { res.destroy(); reject(new Error('RESPONSE_TOO_LARGE')); return; }
           let wire = 0; res.on('data', (chunk: Buffer) => { wire += chunk.length; if (wire > limits.maxBytes) res.destroy(new Error('RESPONSE_TOO_LARGE')); });
           const encoding = headers['content-encoding'];
           const stream = encoding === 'br' ? res.pipe(createBrotliDecompress()) : encoding === 'gzip' ? res.pipe(createGunzip()) : encoding === 'deflate' ? res.pipe(createInflate()) : res;

@@ -49,13 +49,24 @@ export async function punch(input: string, options: ScanOptions): Promise<PunchR
       try { const inspected = await inspectBrowser(response.url, fetch, signal); findings.push(...inspected.findings); metrics.push(...inspected.metrics); completed += inspected.completed; screenshots.push(...inspected.screenshots.map(s => ({ ...s, url: publicUrl(response.url) }))); resources.push(...inspected.resources); if (inspected.completed < inspected.planned) essentialCoverage = false; } catch { essentialCoverage = false; }
       await options.progress('Walking internal links', pages.length, completed);
       const links: string[] = [];
-      $('a[href]').each((_, element) => { try { const link = normalize(new URL($(element).attr('href')!, response.url).href); if (new URL(link).origin === origin && !links.includes(link) && !/\.(pdf|zip|png|jpg|webp|mp4|mp3)$/i.test(new URL(link).pathname)) links.push(link); } catch {} });
+      $('a[href]').each((_, element) => { try { if ($(element).is('[download]')) return; const link = normalize(new URL($(element).attr('href')!, response.url).href); if (new URL(link).origin === origin && !links.includes(link) && !/\.(pdf|zip|png|jpg|webp|mp4|mp3|exe|dmg|msi|deb|rpm)$/i.test(new URL(link).pathname)) links.push(link); } catch {} });
+      const crawlableLinks: string[] = [];
       for (const link of links.slice(0, options.mode === 'quick' ? 5 : 12)) {
         if (signal.aborted || !allowedByRobots(new URL(link).pathname, disallowed)) continue;
         planned++;
-        try { const linkResponse = await fetch(link, { method: 'HEAD', signal }); findings.push(finding({ key: 'reliability.internal-links', category: 'reliability' }, { url: current.url }, { title: linkResponse.status >= 400 ? 'Internal link returned an error' : 'Internal link responds: passed', severity: linkResponse.status >= 500 ? 'HIGH' : linkResponse.status >= 400 ? 'MEDIUM' : 'PASSED', evidence: `${publicUrl(link)} → HTTP ${linkResponse.status}`, recommendation: 'Repair or remove broken internal links. Some servers reject HEAD requests; confirm with a normal navigation.', confidence: linkResponse.status === 405 ? 'low' : 'high' })); completed++; } catch { essentialCoverage = false; }
+        try {
+          const linkResponse = await fetch(link, { method: 'HEAD', signal });
+          const headUnsupported = linkResponse.status === 405 || linkResponse.status === 501;
+          findings.push(finding({ key: 'reliability.internal-links', category: 'reliability' }, { url: current.url }, { title: headUnsupported ? 'Internal link could not be verified with a quick check' : linkResponse.status >= 400 ? 'Internal link returned an error' : 'Internal link responds: passed', severity: headUnsupported ? 'OPPORTUNITY' : linkResponse.status >= 500 ? 'HIGH' : linkResponse.status >= 400 ? 'MEDIUM' : 'PASSED', evidence: `${publicUrl(link)} → HTTP ${linkResponse.status}`, recommendation: headUnsupported ? 'Open this link in a browser to confirm it works. The server rejected the quick link check.' : 'Repair or remove broken internal links.', confidence: headUnsupported ? 'low' : 'high' }));
+          completed++;
+          const type = linkResponse.headers['content-type']?.toLowerCase() || '';
+          const attachment = /\battachment\b/i.test(linkResponse.headers['content-disposition'] || '');
+          if (options.mode === 'full' && linkResponse.status < 400 && !attachment && (!type || type.includes('text/html') || type.includes('application/xhtml+xml'))) crawlableLinks.push(link);
+        } catch (error) {
+          findings.push(finding({ key: 'reliability.internal-link-unverified', category: 'reliability' }, { url: current.url }, { title: 'Internal link check could not complete', severity: 'OPPORTUNITY', evidence: `${publicUrl(link)} → ${redactText(error instanceof Error ? error.message : 'Check failed')}`, recommendation: 'Open the link in a browser to confirm it works.', confidence: 'low' }));
+        }
       }
-      if (options.mode === 'full' && current.depth < options.maxDepth) for (const link of links.slice(0, options.maxPages * 2)) if (!seen.has(link)) queue.push({ url: link, depth: current.depth + 1 });
+      if (options.mode === 'full' && current.depth < options.maxDepth) for (const link of crawlableLinks) if (!seen.has(link)) queue.push({ url: link, depth: current.depth + 1 });
     } catch (error) {
       essentialCoverage = false;
       const code = error instanceof Error ? error.message : 'Target unavailable';

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
 import type { CloudCredentials, DesktopSettings, SignUpCredentials, WatchProject, WorkspaceMode, ExportFormat } from '../shared/types';
 import type { DesktopDatabase } from './database';
 import { sanitizeSettings } from './database';
@@ -8,6 +8,7 @@ import type { WatcherService } from './watchers';
 import { detectLocalServers } from './servers';
 import { exportReport } from './exports';
 import { openInspector } from './inspector';
+import { actionableFindings, buildFixPrompt } from '../../src/core/fix-prompt';
 
 interface Services {
   window: BrowserWindow;
@@ -71,6 +72,14 @@ export function registerIpc(services: Services) {
     const report = source === 'cloud' ? await services.cloud.report(uuid(scanId)) : await services.database.report(uuid(scanId));
     if (!report) throw new Error('Report not found.');
     return exportReport(services.window, report, format);
+  });
+  handle<[string, WorkspaceMode]>('reports:copy-prompt', async (_event, scanId, source) => {
+    if (source !== 'local' && source !== 'cloud') throw new Error('Invalid report source.');
+    const report = source === 'cloud' ? await services.cloud.report(uuid(scanId)) : await services.database.report(uuid(scanId));
+    if (!report || report.scan.status !== 'completed') throw new Error('Completed report not found.');
+    const findings = [...report.gateFindings, ...report.findings];
+    clipboard.writeText(buildFixPrompt(report.scan, findings, 'en', findings.length));
+    return actionableFindings(findings, findings.length).length;
   });
   handle<[string, string | undefined]>('reports:inspect', (_event, url, selector) => openInspector(services.window, String(url), selector ? String(selector) : undefined));
   handle<[string]>('system:open-external', async (_event, value) => {

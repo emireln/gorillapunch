@@ -133,6 +133,7 @@ export interface DesktopAPI {
   };
   reports: {
     export(scanId: string, source: WorkspaceMode, format: ExportFormat): Promise<string | null>;
+    copyPrompt(scanId: string, source: WorkspaceMode): Promise<number>;
     inspect(url: string, selector?: string): Promise<void>;
   };
   system: {

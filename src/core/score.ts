@@ -25,7 +25,8 @@ export function scoreFindings(findings: Finding[], completed: number, planned: n
   let overall: number | null = measured.length ? Math.round(measured.reduce((sum, c) => sum + scores[c]! * weights[c], 0) / measured.reduce((sum, c) => sum + weights[c], 0)) : null;
   if (overall !== null) overall = Math.min(overall, blockers ? 49 : critical ? 69 : 100);
   const insufficient = !essentialCoverage || coverage < 90 || overall === null;
-  const verdict = blockers ? 'DO NOT LAUNCH' : insufficient ? 'INSUFFICIENT COVERAGE' : critical || overall! < 70 ? 'NOT READY' : overall! < 90 ? 'ALMOST READY' : 'READY TO LAUNCH';
+  const high = active.some(finding => finding.severity === 'HIGH');
+  const verdict = blockers ? 'DO NOT LAUNCH' : insufficient ? 'INSUFFICIENT COVERAGE' : critical || overall! < 70 ? 'NOT READY' : overall! < 90 || high ? 'ALMOST READY' : 'READY TO LAUNCH';
   return { overall, categories: scores, verdict, blockers, critical, warnings: active.filter(f => ['HIGH', 'MEDIUM', 'LOW'].includes(f.severity)).length, passed: active.filter(f => f.severity === 'PASSED').length, coverage, completed, planned, version: SCORE_VERSION, launch: verdict === 'READY TO LAUNCH' };
 }
 export function deduplicate(findings: Finding[]): Finding[] {

@@ -46,6 +46,7 @@ const api: DesktopAPI = {
   },
   reports: {
     export: (scanId, source, format) => ipcRenderer.invoke('reports:export', scanId, source, format),
+    copyPrompt: (scanId, source) => ipcRenderer.invoke('reports:copy-prompt', scanId, source),
     inspect: (url, selector) => ipcRenderer.invoke('reports:inspect', url, selector),
   },
   system: {

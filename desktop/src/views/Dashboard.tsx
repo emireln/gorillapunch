@@ -12,7 +12,7 @@ export function Dashboard({ items, localHistory, workspace, defaultMode, servers
   workspace: WorkspaceMode;
   defaultMode: Exclude<ScanMode, 'deep'>;
   servers: LocalServer[];
-  onPunch(url: string, mode: 'quick' | 'full'): void;
+  onPunch(url: string, mode: 'quick' | 'full'): Promise<void>;
   onOpen(item: ScanItem): void;
   onHistory(): void;
 }) {
@@ -32,7 +32,7 @@ export function Dashboard({ items, localHistory, workspace, defaultMode, servers
 
   return (
     <div className="view dashboard-view">
-      <PunchForm workspace={workspace} defaultMode={defaultMode} servers={servers} busy={active.length > 0} onPunch={onPunch}/>
+      <PunchForm workspace={workspace} defaultMode={defaultMode} servers={servers} onPunch={onPunch}/>
       {active.length > 0 && (
         <section className="active-queue">
           <div>
@@ -56,12 +56,12 @@ export function Dashboard({ items, localHistory, workspace, defaultMode, servers
             <div className="arcade-title-group">
               <span className={`arcade-pill ${isWorkerRunning ? 'active-pulse' : ''}`}>
                 <GameController size={14} weight="bold" />
-                {isWorkerRunning ? 'WORKER RUNNING' : 'ARCADE'}
+                {isWorkerRunning ? 'PUNCH IN PROGRESS' : 'ARCADE'}
               </span>
-              <strong>{isWorkerRunning ? 'Play Gorilla Run while worker inspects target' : 'Gorilla Run'}</strong>
+              <strong>{isWorkerRunning ? 'Play Gorilla Run while your site is checked' : 'Gorilla Run'}</strong>
             </div>
             <div className="arcade-header-controls">
-              <span className="arcade-tip">Space / Click to jump • Scores saved to database</span>
+              <span className="arcade-tip">Space / click to jump</span>
               {!isWorkerRunning && (
                 <button className="text-btn" onClick={() => setArcadeOpen(false)}>
                   Close

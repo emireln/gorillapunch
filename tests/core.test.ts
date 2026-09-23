@@ -36,6 +36,16 @@ describe('explainable scores', () => {
   it('does not let minor duplicates destroy a score', () => { const score = scoreFindings(Array.from({ length: 100 }, () => ({ ...base, severity: 'LOW' as const })), 100, 100); expect(score.overall).toBe(98); });
   it('caps total minor deductions per category', () => expect(scoreFindings(Array.from({ length: 100 }, (_, i) => ({ ...base, check_key: `minor-${i}`, severity: 'LOW' as const })), 100, 100).overall).toBe(76));
   it('never interprets failed coverage as a full pass', () => { expect(scoreFindings([{ ...base, severity: 'PASSED' }], 5, 10).launch).toBe(false); expect(scoreFindings([], 0, 10).overall).toBeNull(); expect(scoreFindings([{ ...base, severity: 'PASSED' }], 100, 100, false).verdict).toBe('INSUFFICIENT COVERAGE'); });
+  it('does not declare launch ready while a high severity finding remains', () => {
+    const findings = [
+      { ...base, category: 'accessibility' as const, severity: 'HIGH' as const },
+      { ...base, check_key: 'performance.passed', category: 'performance' as const, severity: 'PASSED' as const },
+    ];
+    const score = scoreFindings(findings, 100, 100);
+    expect(score.overall).toBeGreaterThanOrEqual(90);
+    expect(score.verdict).toBe('ALMOST READY');
+    expect(score.launch).toBe(false);
+  });
   it('aggregates repeated instances', () => expect(deduplicate([base, { ...base, id: 'second' }])[0].instances).toHaveLength(2));
   it('detects fixed, new and regressed issues', () => { const changes = compareFindings([base, { ...base, check_key: 'fixed' }], [{ ...base, severity: 'HIGH' }, { ...base, check_key: 'new' }]); expect(changes.map(c => c.change)).toEqual(['REGRESSION', 'NEW ISSUE', 'FIXED']); });
 });

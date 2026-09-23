@@ -25,6 +25,7 @@ export function App() {
   const [loadingReport, setLoadingReport] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('gp-sidebar-collapsed') === 'true');
 
   const notify = useCallback((message: string, tone: 'success' | 'error' = 'success') => {
     const id = Date.now() + Math.random();
@@ -53,7 +54,7 @@ export function App() {
       setReport(completed); setReportSource('local'); setView('report');
       if (completed.scan.synced_at) void refreshCloud();
     });
-    const failed = window.gorillaPunch.scans.onError(scan => { setLocalHistory(current => upsert(current, scan)); notify(scan.sync_error || 'Punch failed.', 'error'); });
+    const failed = window.gorillaPunch.scans.onError(scan => { setLocalHistory(current => upsert(current, scan)); if (scan.status !== 'cancelled') notify(scan.sync_error || 'Punch failed.', 'error'); });
     const connection = () => { setOnline(navigator.onLine); if (navigator.onLine) void refreshCloud(); };
     window.addEventListener('online', connection); window.addEventListener('offline', connection);
     return () => { progress(); complete(); failed(); window.removeEventListener('online', connection); window.removeEventListener('offline', connection); };
@@ -65,6 +66,8 @@ export function App() {
     const apply = () => { document.documentElement.dataset.theme = settings.theme === 'system' ? media.matches ? 'dark' : 'light' : settings.theme; };
     apply(); media.addEventListener('change', apply); return () => media.removeEventListener('change', apply);
   }, [settings]);
+
+  useEffect(() => { localStorage.setItem('gp-sidebar-collapsed', String(sidebarCollapsed)); }, [sidebarCollapsed]);
 
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
@@ -131,14 +134,14 @@ export function App() {
   };
 
   if (!settings || !cloud) return <div className="boot-screen"><div className="boot-mark">GP</div><span>Loading local workspace…</span></div>;
-  return <div className="desktop-app">
+  return <div className={`desktop-app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     <TitleBar workspace={settings.workspace} cloud={cloud} online={online} onPunch={url => void startPunch(url)}/>
-    <div className="desktop-body"><Sidebar view={view} setView={next => { if (next !== 'report') setView(next); }} workspace={settings.workspace} cloud={cloud}/><main>
-      {view === 'dashboard' && <Dashboard items={items} localHistory={localHistory} workspace={settings.workspace} defaultMode={settings.defaultMode} servers={servers} onPunch={(url, mode) => void startPunch(url, mode)} onOpen={item => void openReport(item)} onHistory={() => setView('history')}/>}
+    <div className="desktop-body"><Sidebar view={view} setView={next => { if (next !== 'report') setView(next); }} workspace={settings.workspace} cloud={cloud} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(value => !value)}/><main>
+      {view === 'dashboard' && <Dashboard items={items} localHistory={localHistory} workspace={settings.workspace} defaultMode={settings.defaultMode} servers={servers} onPunch={startPunch} onOpen={item => void openReport(item)} onHistory={() => setView('history')}/>}
       {view === 'history' && <History items={items} onOpen={item => void openReport(item)}/>}
       {view === 'watchers' && <Watchers watchers={watchers} onAdd={addWatcher} onUpdate={updateWatcher} onRemove={removeWatcher}/>}
       {view === 'settings' && <Settings settings={settings} cloud={cloud} onSettings={updateSettings} onCloud={state => { setCloud(state); if (state.authenticated) { void updateSettings({ workspace: 'cloud', autoSync: true }); void refreshCloud(state); } else { setCloudHistory([]); void updateSettings({ workspace: 'local' }); } }} notify={notify}/>}
-      {view === 'report' && (loadingReport ? <div className="view loading-view">Loading report evidence…</div> : report ? <ReportView report={report} source={reportSource} onBack={() => setView('history')} onDelete={deleteReport} onSync={syncReport} notify={notify}/> : <div className="view empty-panel">Report unavailable.</div>)}
+      {view === 'report' && (loadingReport ? <div className="view loading-view">Loading report evidence…</div> : report ? <ReportView key={report.scan.id} report={report} source={reportSource} onBack={() => setView('history')} onDelete={deleteReport} onSync={syncReport} notify={notify}/> : <div className="view empty-panel">Report unavailable.</div>)}
     </main></div>
     <div className="toast-stack">{toasts.map(toast => <div key={toast.id} className={`toast ${toast.tone}`}>{toast.tone === 'success' ? <CheckCircle size={20}/> : <WarningCircle size={20}/>}<span>{toast.message}</span><button onClick={() => setToasts(current => current.filter(item => item.id !== toast.id))}><X size={16}/></button></div>)}</div>
   </div>;
