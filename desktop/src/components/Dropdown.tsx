@@ -32,10 +32,6 @@ export function Dropdown<T extends string | number>({
   const typeaheadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!open) setActiveIndex(selectedIndex);
-  }, [open, selectedIndex]);
-
-  useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
