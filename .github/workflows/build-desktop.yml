@@ -2,6 +2,8 @@ name: Desktop release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'desktop-v*'
       - 'v*'
@@ -25,7 +27,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - run: npm install
+      - run: npm install --global npm@11.12.1
+      - run: npm ci --no-audit --no-fund
       - run: npm run desktop:package
         env:
           VITE_GP_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || 'https://siuktrgrqxjrecvoqdek.supabase.co' }}

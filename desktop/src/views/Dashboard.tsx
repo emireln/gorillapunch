@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle, CloudArrowUp, Crosshair, GameController, ShieldCheck } from '@phosphor-icons/react';
+import { CheckCircle, CloudArrowUp, Crosshair, GameController, Pause, Play, ShieldCheck } from '@phosphor-icons/react';
 import type { DesktopScan, LocalServer, ScanMode, WorkspaceMode } from '../../shared/types';
 import type { ScanItem } from '../utils';
 import { PunchForm } from '../components/PunchForm';
@@ -17,6 +17,7 @@ export function Dashboard({ items, localHistory, workspace, defaultMode, servers
   onHistory(): void;
 }) {
   const [arcadeOpen, setArcadeOpen] = useState(false);
+  const [arcadePaused, setArcadePaused] = useState(false);
   const completed = items.filter(item => item.scan.status === 'completed');
   const scores = completed.map(item => item.scan.score?.overall).filter((score): score is number => typeof score === 'number');
   const active = localHistory.filter(scan => ['queued', 'running'].includes(scan.status));
@@ -61,16 +62,21 @@ export function Dashboard({ items, localHistory, workspace, defaultMode, servers
               <strong>{isWorkerRunning ? 'Play Gorilla Run while your site is checked' : 'Gorilla Run'}</strong>
             </div>
             <div className="arcade-header-controls">
-              <span className="arcade-tip">Space / click to jump</span>
+              <span className="arcade-tip">Space / click to jump · P to pause</span>
+              <button className="secondary-btn arcade-control-btn" type="button" aria-label={arcadePaused ? 'Resume game' : 'Pause game'} onClick={() => setArcadePaused(value => !value)}>
+                {arcadePaused ? <Play size={15} weight="fill" /> : <Pause size={15} weight="fill" />}
+                {arcadePaused ? 'Resume' : 'Pause'}
+              </button>
               {!isWorkerRunning && (
-                <button className="text-btn" onClick={() => setArcadeOpen(false)}>
+                <button className="text-btn" onClick={() => { setArcadeOpen(false); setArcadePaused(false); }}>
                   Close
                 </button>
               )}
             </div>
           </div>
           <div className="desktop-arcade-canvas-wrap">
-            <PixelGame background="#141119" ink="#a78bfa" />
+            <PixelGame background="var(--arcade-bg, #24202b)" ink="var(--arcade-ink, #957cdf)" paused={arcadePaused} onPauseToggle={() => setArcadePaused(value => !value)} />
+            {arcadePaused && <div className="arcade-pause-overlay" role="status"><strong>Paused</strong><span>Press P or Resume to keep playing</span></div>}
           </div>
         </section>
       )}

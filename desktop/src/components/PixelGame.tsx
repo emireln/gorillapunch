@@ -26,8 +26,8 @@ const A_HUD_VALUE = 1.0;
 
 type RGBA = [number, number, number, number];
 
-const INK_FALLBACK: RGBA = [255, 255, 255, 1];
-const BG_FALLBACK: RGBA = [18, 16, 25, 1];
+const INK_FALLBACK: RGBA = [149, 124, 223, 1];
+const BG_FALLBACK: RGBA = [36, 32, 43, 1];
 
 const COLOR_CACHE = new Map<string, RGBA>();
 
@@ -129,37 +129,47 @@ function parseColor(input: string | undefined, fallback: RGBA): RGBA {
   return out;
 }
 
-// Custom GorillaPunch Mascot — Pixel-art silverback gorilla in side-profile charge
+// A charging gorilla with a visible face and silverback.
 const GORILLA_BODY = [
-  "....####........", // Sagittal crest (top of skull)
-  "...######.......", // Crown
-  "..########......", // Heavy brow ridge
-  "..##.###.#......", // Eye socket & ear
-  "..########......", // Muzzle / snout
-  "...#######......", // Strong jaw
-  "..#########.....", // Thick neck into trapezius
-  ".###########....", // Hunched back / silverback hump
-  ".############...", // Broad chest & leading shoulder
-  "##############..", // Upper arm extends forward
-  ".#############..", // Fist punching out
-  "..###########...", // Lower torso
-  "...#########....", // Waist
-  "....########....", // Hips
+  "............#######.........",
+  "..........###########.......",
+  ".........#############......",
+  "........###++++++######.....",
+  ".......####+++++++#####.....",
+  "......#####+++++++##o###....",
+  ".....######################.",
+  "....########################",
+  "...########+++++###########.",
+  "..########+++++++##########.",
+  ".#########+++++++##########.",
+  "##########+++++++##########.",
+  "###########+++++###########.",
+  ".##########################.",
+  "..##################...####.",
+  "...################....####.",
+  "....##############.......##.",
+  ".....############...........",
 ];
 
 const GORILLA_LEGS_A = [
-  "...####...####..",
-  "...###.....###..",
+  "......#####....#####........",
+  ".....######....#####........",
+  "....#####.......#####.......",
+  "...#####.........#####......",
 ];
 
 const GORILLA_LEGS_B = [
-  "....###...####..",
-  "...####....###..",
+  "......#####....#####........",
+  ".......#####..#####.........",
+  "........#####.####..........",
+  ".........#########..........",
 ];
 
 const GORILLA_LEGS_AIR = [
-  "...#####..####..",
-  "....##.....##...",
+  "......#####....#####........",
+  ".......#####....#####.......",
+  "........#####.....#####.....",
+  ".........####.......####....",
 ];
 
 const CLOUD = [
@@ -295,12 +305,14 @@ export interface PixelGameProps {
   className?: string;
   onScoreSave?: (score: number, best: number) => void;
   initialBest?: number;
+  paused?: boolean;
+  onPauseToggle?: () => void;
 }
 
 export function PixelGame(props: PixelGameProps) {
   const {
-    background = "#13111C",
-    ink = "#A78BFA",
+    background = "#24202b",
+    ink = "#957cdf",
     startSpeed = 420,
     maxSpeed = 980,
     gravity = 4780,
@@ -394,18 +406,18 @@ export function PixelGame(props: PixelGameProps) {
     ctx.fillStyle = bgFill();
     ctx.fillRect(0, 0, w, h);
 
-    const stamp = (rows: string[], ox: number, oy: number, unit: number) => {
+    const stamp = (rows: string[], ox: number, oy: number, unit: number, pixel = "#") => {
       for (let r = 0; r < rows.length; r++) {
         const y0 = Math.round(oy + r * unit);
         const y1 = Math.round(oy + (r + 1) * unit);
         let c = 0;
         while (c < rows[r].length) {
-          if (rows[r][c] !== "#") {
+          if (rows[r][c] !== pixel) {
             c++;
             continue;
           }
           let e = c;
-          while (e < rows[r].length && rows[r][e] === "#") e++;
+          while (e < rows[r].length && rows[r][e] === pixel) e++;
           const x0 = Math.round(ox + c * unit);
           const x1 = Math.round(ox + e * unit);
           ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
@@ -473,15 +485,22 @@ export function PixelGame(props: PixelGameProps) {
     }
 
     // Charging Gorilla sprite
-    const bodyH = GORILLA_BODY.length * px;
+    const gorillaPx = px * 0.85;
+    const bodyH = (GORILLA_BODY.length + GORILLA_LEGS_A.length) * gorillaPx;
     const feet = groundY - world.playerY;
-    blit(GORILLA_BODY, playerX, feet - bodyH - 2 * px, px, A_SPRITE);
+    const bodyY = feet - bodyH;
+    ctx.fillStyle = inkAt(A_SPRITE);
+    stamp(GORILLA_BODY, playerX, bodyY, gorillaPx);
+    ctx.fillStyle = inkAt(0.58);
+    stamp(GORILLA_BODY, playerX, bodyY, gorillaPx, "+");
+    ctx.fillStyle = bgFill();
+    stamp(GORILLA_BODY, playerX, bodyY, gorillaPx, "o");
     const legs = !world.grounded
       ? GORILLA_LEGS_AIR
       : Math.floor(world.dist / (28 * S)) % 2
         ? GORILLA_LEGS_A
         : GORILLA_LEGS_B;
-    blit(legs, playerX, feet - 2 * px, px, A_SPRITE);
+    blit(legs, playerX, feet - legs.length * gorillaPx, gorillaPx, A_SPRITE);
 
     if (!(p.showHud ?? showHud)) return;
 
@@ -527,7 +546,7 @@ export function PixelGame(props: PixelGameProps) {
     const top = stack * BLOCK_UNITS * px;
     const disc = v * v - 2 * g * top;
 
-    const tX = (10 * px + BLOCK_UNITS * px * 0.76) / sp;
+    const tX = (22 * px * 0.85 + BLOCK_UNITS * px * 0.76) / sp;
     if (disc <= 0) return { ok: false, lead: 0 };
     const root = Math.sqrt(disc);
     const t1 = (v - root) / g;
@@ -635,7 +654,7 @@ export function PixelGame(props: PixelGameProps) {
       (!world.played || idleRef.current > IDLE_RESUME);
     if (auto && world.grounded) {
       const bu = BLOCK_UNITS * px;
-      const plFront = playerX + 14 * px;
+      const plFront = playerX + 25 * px * 0.85;
       let next: Obstacle | null = null;
       let gap = Infinity;
       for (const ob of world.obstacles) {
@@ -654,10 +673,10 @@ export function PixelGame(props: PixelGameProps) {
     }
 
     const pl = {
-      x: playerX + 2 * px,
-      y: groundY - world.playerY - 16 * px + 2 * px,
-      w: 12 * px,
-      h: 14 * px,
+      x: playerX + 3 * px * 0.85,
+      y: groundY - world.playerY - 20 * px * 0.85,
+      w: 22 * px * 0.85,
+      h: 18 * px * 0.85,
     };
     for (const ob of world.obstacles) {
       const bu = BLOCK_UNITS * px;
@@ -707,7 +726,7 @@ export function PixelGame(props: PixelGameProps) {
 
   function doJump() {
     const world = worldRef.current;
-    if (!world || world.dead || !world.grounded) return;
+    if (!world || propsRef.current.paused || world.dead || !world.grounded) return;
     const p = propsRef.current;
     const host = hostRef.current;
     const h = host ? host.clientHeight || REF_H : REF_H;
@@ -767,7 +786,7 @@ export function PixelGame(props: PixelGameProps) {
       const prev = lastRef.current || now;
       lastRef.current = now;
       const dt = Math.min(0.05, (now - prev) / 1000);
-      if (dt > 0) stepRef.current(dt, w, h);
+      if (dt > 0 && !propsRef.current.paused) stepRef.current(dt, w, h);
       paintRef.current(ctx, w, h);
       rafRef.current = requestAnimationFrame(frame);
     };
@@ -789,18 +808,26 @@ export function PixelGame(props: PixelGameProps) {
     };
 
     const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
       const mine =
         hoverRef.current ||
         (host !== null && typeof document !== "undefined" && document.activeElement === host);
       if (!mine) return;
+      if (e.code === "KeyP" || e.key.toLowerCase() === "p") {
+        e.preventDefault();
+        propsRef.current.onPauseToggle?.();
+        return;
+      }
       if (e.code === "Space" || e.code === "ArrowUp" || e.key === " " || e.key === "ArrowUp") {
         e.preventDefault();
+        if (propsRef.current.paused) return;
         play();
         doJumpRef.current();
       }
     };
     const onPointer = (e: Event) => {
       e.preventDefault();
+      if (propsRef.current.paused) return;
       play();
       doJumpRef.current();
     };
@@ -838,7 +865,7 @@ export function PixelGame(props: PixelGameProps) {
         overflow: "hidden",
         background,
         touchAction: "manipulation",
-        cursor: "pointer",
+        cursor: props.paused ? "default" : "pointer",
         outline: "none",
         ...style,
       }}

@@ -8,6 +8,8 @@ html[data-theme='dark'] {
   --bg-secondary: #24202B;
   --bg-tertiary: #1B1821;
   --bg-overlay: #393442;
+  --arcade-bg: #24202b;
+  --arcade-ink: #957cdf;
 
   --content-headings: #FFFFFF;
   --content-primary: #E7E5EA;
