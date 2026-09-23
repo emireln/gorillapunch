@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog } from 'electron';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import { DesktopDatabase } from './database';
 import { CloudService } from './cloud';
 import { ScanManager } from './scanner';
@@ -38,7 +39,7 @@ async function boot() {
   const checkForUpdates = async () => {
     if (!app.isPackaged) return 'Update checks are available in packaged builds.';
     try {
-      const updater = await import('electron-updater');
+      const updater = createRequire(import.meta.url)('electron-updater') as typeof import('electron-updater');
       updater.autoUpdater.autoDownload = false;
       const result = await updater.autoUpdater.checkForUpdates();
       if (!result) return 'The update service is unavailable right now.';
