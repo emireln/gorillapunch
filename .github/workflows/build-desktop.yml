@@ -36,6 +36,14 @@ jobs:
           VITE_GP_API_URL: ${{ vars.APP_URL || 'https://www.gorillapunch.run' }}
           CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+      - name: Add stable download filenames
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem -LiteralPath desktop/dist -Filter 'GorillaPunch-Setup-*-x64.exe' | Select-Object -First 1
+          $portable = Get-ChildItem -LiteralPath desktop/dist -Filter 'GorillaPunch-Portable-*-x64.exe' | Select-Object -First 1
+          if (-not $setup -or -not $portable) { throw 'Expected desktop installers were not built.' }
+          Copy-Item -LiteralPath $setup.FullName -Destination desktop/dist/GorillaPunch-Setup.exe
+          Copy-Item -LiteralPath $portable.FullName -Destination desktop/dist/GorillaPunch-portable.exe
       - uses: actions/upload-artifact@v4
         with:
           name: gorillapunch-windows-${{ matrix.architecture }}

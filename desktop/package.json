@@ -1,6 +1,6 @@
 {
   "name": "gorillapunch-desktop",
-  "version": "1.0.60",
+  "version": "1.0.61",
   "private": true,
   "type": "module",
   "main": "./out/main/index.js",
@@ -18,7 +18,7 @@
     "audit:bundle": "node scripts/audit-bundle.mjs",
     "assets": "node scripts/generate-assets.mjs",
     "prepare:playwright": "node scripts/prepare-playwright.mjs",
-    "package:win": "npm run prepare:playwright && npm run build && electron-builder --win",
+    "package:win": "npm run prepare:playwright && npm run build && electron-builder --win --publish never",
     "package:dir": "npm run build && electron-builder --dir"
   },
   "dependencies": {
