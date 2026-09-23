@@ -85,6 +85,8 @@ export interface CloudCredentials {
   password: string;
 }
 
+export type IpcActionResult<T> = { ok: true; value: T } | { ok: false; error: string };
+
 export interface SignUpCredentials extends CloudCredentials {
   displayName: string;
 }

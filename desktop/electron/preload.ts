@@ -1,5 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopAPI } from '../shared/types';
+import type { DesktopAPI, IpcActionResult } from '../shared/types';
+
+const invokeAuth = async <T>(channel: string, value: unknown): Promise<T> => {
+  const result = await ipcRenderer.invoke(channel, value) as IpcActionResult<T>;
+  if (!result || result.ok !== true) {
+    throw new Error(result && 'error' in result ? result.error : 'We could not connect your account. Please try again.');
+  }
+  return result.value;
+};
 
 const listen = <T>(channel: string, callback: (value: T) => void) => {
   const handler = (_event: Electron.IpcRendererEvent, value: T) => callback(value);
@@ -29,8 +37,8 @@ const api: DesktopAPI = {
   },
   cloud: {
     state: () => ipcRenderer.invoke('cloud:state'),
-    signIn: credentials => ipcRenderer.invoke('cloud:sign-in', credentials),
-    signUp: credentials => ipcRenderer.invoke('cloud:sign-up', credentials),
+    signIn: credentials => invokeAuth('cloud:sign-in', credentials),
+    signUp: credentials => invokeAuth('cloud:sign-up', credentials),
     signOut: () => ipcRenderer.invoke('cloud:sign-out'),
     history: () => ipcRenderer.invoke('cloud:history'),
     report: scanId => ipcRenderer.invoke('cloud:report', scanId),

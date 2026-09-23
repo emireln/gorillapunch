@@ -3,6 +3,7 @@ import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { DesktopDatabase, sanitizeSettings } from '../desktop/electron/database';
+import { errorMessage } from '../desktop/src/utils';
 
 const temporary: string[] = [];
 afterEach(async () => {
@@ -49,5 +50,20 @@ describe('desktop local workspace', () => {
     expect(await database.getGameHighScore()).toBe(128);
 
     await database.close();
+  });
+});
+
+describe('desktop user feedback', () => {
+  it('preserves notification strings instead of replacing them with a generic error', () => {
+    expect(errorMessage('Account connected. Cloud sync is ready.')).toBe('Account connected. Cloud sync is ready.');
+  });
+
+  it('keeps readable IPC error messages after Electron serialization', () => {
+    expect(errorMessage({ message: "Error invoking remote method 'cloud:sign-in': Error: Email or password is incorrect." }))
+      .toBe('Email or password is incorrect.');
+  });
+
+  it('uses a fallback only when an error has no readable message', () => {
+    expect(errorMessage({})).toBe('Something went wrong.');
   });
 });

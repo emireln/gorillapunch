@@ -1,5 +1,5 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
-import type { CloudCredentials, DesktopSettings, SignUpCredentials, WatchProject, WorkspaceMode, ExportFormat } from '../shared/types';
+import type { CloudCredentials, DesktopSettings, IpcActionResult, SignUpCredentials, WatchProject, WorkspaceMode, ExportFormat } from '../shared/types';
 import type { DesktopDatabase } from './database';
 import { sanitizeSettings } from './database';
 import type { CloudService } from './cloud';
@@ -28,6 +28,13 @@ export function registerIpc(services: Services) {
       catch (error) { throw new Error(error instanceof Error ? error.message : 'The desktop action failed.'); }
     });
   };
+  const handleAuth = <T extends unknown[], R>(channel: string, action: (event: IpcMainInvokeEvent, ...args: T) => Promise<R>) => {
+    ipcMain.handle(channel, async (event, ...args: T): Promise<IpcActionResult<R>> => {
+      assertTrusted(event);
+      try { return { ok: true, value: await action(event, ...args) }; }
+      catch (error) { return { ok: false, error: authActionMessage(error) }; }
+    });
+  };
   handle('window:minimize', () => services.window.minimize());
   handle('window:maximize', () => services.window.isMaximized() ? services.window.unmaximize() : services.window.maximize());
   handle('window:close', () => services.requestClose());
@@ -42,8 +49,8 @@ export function registerIpc(services: Services) {
   handle<[boolean]>('scans:pause', (_event, paused) => services.scans.setPaused(!!paused));
 
   handle('cloud:state', () => services.cloud.state());
-  handle<[CloudCredentials]>('cloud:sign-in', (_event, input) => services.cloud.signIn(credentials(input)));
-  handle<[SignUpCredentials]>('cloud:sign-up', (_event, input) => services.cloud.signUp({ ...credentials(input), displayName: String(input?.displayName || '').trim().slice(0, 80) }));
+  handleAuth<[CloudCredentials], Awaited<ReturnType<CloudService['signIn']>>>('cloud:sign-in', (_event, input) => services.cloud.signIn(credentials(input)));
+  handleAuth<[SignUpCredentials], Awaited<ReturnType<CloudService['signUp']>>>('cloud:sign-up', (_event, input) => services.cloud.signUp({ ...credentials(input, true), displayName: String(input?.displayName || '').trim().slice(0, 80) }));
   handle('cloud:sign-out', () => services.cloud.signOut());
   handle('cloud:history', () => services.cloud.history());
   handle<[string]>('cloud:report', (_event, id) => services.cloud.report(uuid(id)));
@@ -113,10 +120,31 @@ function uuid(value: unknown) {
   return id;
 }
 
-function credentials(input: CloudCredentials): CloudCredentials {
+function credentials(input: CloudCredentials, requireStrongPassword = false): CloudCredentials {
   const email = String(input?.email || '').trim().toLowerCase();
   const password = String(input?.password || '');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) throw new Error('Enter a valid email address.');
-  if (password.length < 10 || password.length > 128) throw new Error('Use a password between 10 and 128 characters.');
+  if (!password.length) throw new Error('Enter your password.');
+  if (password.length > 128) throw new Error('Use a password with 128 characters or fewer.');
+  if (requireStrongPassword && password.length < 10) throw new Error('Use a password between 10 and 128 characters.');
   return { email, password };
+}
+
+function authActionMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : '';
+  const safeMessages = new Set([
+    'Enter a valid email address.',
+    'Enter your password.',
+    'Use a password with 128 characters or fewer.',
+    'Use a password between 10 and 128 characters.',
+    'Cloud sync is unavailable right now. Try again later or contact support.',
+    'Too many attempts. Wait a moment and try again.',
+    'We could not reach your account right now. Check your connection and try again.',
+    'Email or password is incorrect. Please try again.',
+    'We could not sign in. Please try again.',
+    'An account with this email already exists. Sign in instead.',
+    'Choose a stronger password and try again.',
+    'We could not create your account. Please try again.',
+  ]);
+  return safeMessages.has(message) ? message : 'We could not connect your account. Please try again.';
 }

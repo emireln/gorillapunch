@@ -28,6 +28,13 @@ export function scoreBand(value: number | null | undefined) {
 }
 
 export function errorMessage(error: unknown) {
-  const message = error instanceof Error ? error.message : 'Something went wrong.';
-  return message.replace(/^Error invoking remote method '[^']+': Error: /, '').slice(0, 360);
+  const raw = typeof error === 'string'
+    ? error
+    : error instanceof Error
+      ? error.message
+      : error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+        ? error.message
+        : '';
+  const message = raw.replace(/^Error invoking remote method '[^']+': Error: /, '').trim();
+  return (message || 'Something went wrong.').slice(0, 360);
 }
