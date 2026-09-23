@@ -17,7 +17,11 @@ export function createTray(window: BrowserWindow, database: DesktopDatabase, sca
       { label: 'Quick Punch from Clipboard', click: () => { void quickPunch(); } },
       { type: 'separator' },
       { label: scans.isPaused() ? 'Resume queue' : 'Pause queue', click: () => { void scans.setPaused(!scans.isPaused()).then(rebuild); } },
-      { label: 'Check for updates…', click: () => { void checkForUpdates(); } },
+      { label: 'Check for updates…', click: () => {
+        void checkForUpdates().then(message => {
+          if (Notification.isSupported()) new Notification({ title: 'GorillaPunch update check', body: message, silent: true }).show();
+        });
+      } },
       { type: 'separator' },
       { label: 'Quit', click: requestQuit },
     ]));

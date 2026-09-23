@@ -41,8 +41,12 @@ async function boot() {
       const updater = await import('electron-updater');
       updater.autoUpdater.autoDownload = false;
       const result = await updater.autoUpdater.checkForUpdates();
-      return result?.updateInfo.version && result.updateInfo.version !== app.getVersion() ? `Version ${result.updateInfo.version} is available.` : 'GorillaPunch is up to date.';
-    } catch { return 'The update service is unavailable right now.'; }
+      if (!result) return 'The update service is unavailable right now.';
+      return result.isUpdateAvailable ? `Version ${result.updateInfo.version} is available.` : 'GorillaPunch is up to date.';
+    } catch (error) {
+      diagnostic(`update check failed: ${error instanceof Error ? error.message : String(error)}`);
+      return 'The update service is unavailable right now.';
+    }
   };
   watchers = new WatcherService(database, scanManager);
   await watchers.initialize();

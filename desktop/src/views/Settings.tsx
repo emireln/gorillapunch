@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowsClockwise, Cloud, CloudArrowUp, Desktop, HardDrives, LockKey, Moon, SignOut, Sun } from '@phosphor-icons/react';
 import type { CloudState, DesktopSettings } from '../../shared/types';
+import { Dropdown } from '../components/Dropdown';
 
 export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
   settings: DesktopSettings;
@@ -15,6 +16,7 @@ export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
   const [name, setName] = useState('');
   const [terms, setTerms] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [checkingForUpdates, setCheckingForUpdates] = useState(false);
   const [accountMessage, setAccountMessage] = useState('');
 
   const authenticate = async (event: FormEvent) => {
@@ -61,6 +63,18 @@ export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
     if (!cloud.authenticated) document.getElementById('cloud-account')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
+  const checkForUpdates = async () => {
+    setCheckingForUpdates(true);
+    try {
+      const message = await window.gorillaPunch.system.checkForUpdates();
+      notify(message, message.includes('unavailable') ? 'error' : 'success');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'The update service is unavailable right now.', 'error');
+    } finally {
+      setCheckingForUpdates(false);
+    }
+  };
+
   return <div className="view settings-view">
     <div className="page-heading"><div><span className="eyebrow">PREFERENCES</span><h1>Settings</h1><p>Choose where reports go and adjust how audits run.</p></div></div>
 
@@ -100,8 +114,8 @@ export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
     <section className="settings-section">
       <div className="settings-intro"><h2>Audit options</h2><p>Choose how much of each site to check.</p></div>
       <div className="audit-options">
-        <div className="settings-card fields-grid"><label><span>Default audit</span><select value={settings.defaultMode} onChange={event => void onSettings({ defaultMode: event.target.value as 'quick' | 'full' })}><option value="quick">Quick</option><option value="full">Full</option></select></label></div>
-        <details className="settings-card advanced-settings"><summary>More options</summary><div className="fields-grid"><label><span>Pages to check</span><input type="number" min={1} max={30} value={settings.maxPages} onChange={event => void onSettings({ maxPages: Number(event.target.value) })}/></label><label><span>Link depth</span><input type="number" min={0} max={4} value={settings.maxDepth} onChange={event => void onSettings({ maxDepth: Number(event.target.value) })}/></label><label><span>Time limit (seconds)</span><input type="number" min={30} max={600} value={settings.maxDurationSeconds} onChange={event => void onSettings({ maxDurationSeconds: Number(event.target.value) })}/></label><label><span>Simultaneous audits</span><select value={settings.concurrency} onChange={event => void onSettings({ concurrency: Number(event.target.value) })}><option value={1}>1 — recommended</option><option value={2}>2</option><option value={3}>3</option></select></label></div></details>
+        <div className="settings-card fields-grid"><label><span>Default audit</span><Dropdown<'quick' | 'full'> ariaLabel="Default audit" value={settings.defaultMode} onChange={value => void onSettings({ defaultMode: value })} options={[{ value: 'quick', label: 'Quick' }, { value: 'full', label: 'Full' }]}/></label></div>
+        <details className="settings-card advanced-settings"><summary>More options</summary><div className="fields-grid"><label><span>Pages to check</span><input type="number" min={1} max={30} value={settings.maxPages} onChange={event => void onSettings({ maxPages: Number(event.target.value) })}/></label><label><span>Link depth</span><input type="number" min={0} max={4} value={settings.maxDepth} onChange={event => void onSettings({ maxDepth: Number(event.target.value) })}/></label><label><span>Time limit (seconds)</span><input type="number" min={30} max={600} value={settings.maxDurationSeconds} onChange={event => void onSettings({ maxDurationSeconds: Number(event.target.value) })}/></label><label><span>Simultaneous audits</span><Dropdown<number> ariaLabel="Simultaneous audits" value={settings.concurrency} onChange={value => void onSettings({ concurrency: value })} options={[{ value: 1, label: '1 — recommended' }, { value: 2, label: '2' }, { value: 3, label: '3' }]}/></label></div></details>
       </div>
     </section>
 
@@ -114,7 +128,7 @@ export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
         <Switch label="Find development sites automatically" checked={settings.portScan} onChange={value => void onSettings({ portScan: value })}/>
         <Switch label="Launch when Windows starts" checked={settings.launchAtStartup} onChange={value => void onSettings({ launchAtStartup: value })}/>
         {settings.workspace === 'cloud' && <Switch label="Automatically sync completed reports" checked={settings.autoSync} onChange={value => void onSettings({ autoSync: value })}/>}
-        <button className="secondary-btn update-button" onClick={() => void window.gorillaPunch.system.checkForUpdates().then(message => notify(message, 'success'))}><ArrowsClockwise size={17}/> Check for updates</button>
+        <button className="secondary-btn update-button" disabled={checkingForUpdates} onClick={() => void checkForUpdates()}><ArrowsClockwise className={checkingForUpdates ? 'spin' : ''} size={17}/> {checkingForUpdates ? 'Checking…' : 'Check for updates'}</button>
       </div>
     </section>
   </div>;
