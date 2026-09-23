@@ -2,7 +2,7 @@ import { chromium, type Browser, type Page } from 'playwright';
 import AxeBuilder from '@axe-core/playwright';
 import type { Finding, Metric } from '../core/types';
 import { finding } from './checks/types';
-import { publicUrl, redactText } from '../server/redact';
+import { publicUrl, redactText } from '../core/redact';
 import type { Transport } from './network';
 import { botUserAgent } from './identity';
 interface Resource { url: string; status: number; bytes: number; duration: number; type: string }

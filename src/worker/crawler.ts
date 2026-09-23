@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { Finding, Metric, PageRecord, ScanMode, Score } from '../core/types';
 import { scoreFindings, deduplicate } from '../core/score';
 import { normalizeUrl } from '../core/url';
-import { publicUrl, redactText } from '../server/redact';
+import { publicUrl, redactText } from '../core/redact';
 import { checks } from './checks';
 import { finding } from './checks/types';
 import { createSafeTransport, type Transport } from './network';

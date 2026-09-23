@@ -10,5 +10,5 @@
     "types": ["node", "electron-vite/node"],
     "noEmit": true
   },
-  "include": ["electron/**/*.ts", "shared/**/*.ts", "electron.vite.config.ts", "../src/core/**/*.ts", "../src/worker/**/*.ts", "../src/server/redact.ts"]
+  "include": ["electron/**/*.ts", "shared/**/*.ts", "electron.vite.config.ts", "../src/core/**/*.ts"]
 }

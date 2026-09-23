@@ -4,7 +4,7 @@ import https from 'node:https';
 import { createBrotliDecompress, createGunzip, createInflate } from 'node:zlib';
 import { isIP } from 'node:net';
 import { isDesktopReachableIP, isPublicIP, normalizeUrl } from '../core/url';
-import { publicUrl } from '../server/redact';
+import { publicUrl } from '../core/redact';
 import { botUserAgent } from './identity';
 export interface HttpResult { url: string; status: number; headers: Record<string, string>; body: Buffer; duration: number; redirects: string[]; tls?: { issuer: string; validTo: string; validFrom: string; subject: string; san: string; protocol: string } }
 export type Transport = (url: string, options?: { method?: 'GET' | 'HEAD'; signal?: AbortSignal }) => Promise<HttpResult>;

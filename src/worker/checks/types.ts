@@ -1,7 +1,7 @@
 import type { CheerioAPI } from 'cheerio';
 import { randomUUID } from 'node:crypto';
 import type { Category, Confidence, Finding, Severity } from '../../core/types';
-import { publicUrl, redactText } from '../../server/redact';
+import { publicUrl, redactText } from '../../core/redact';
 import type { HttpResult, Transport } from '../network';
 export interface CheckContext { $: CheerioAPI; response: HttpResult; fetch: Transport; url: string }
 export interface PunchCheck { key: string; category: Category; description: string; run(context: CheckContext): Promise<Finding[]> }
