@@ -1,5 +1,16 @@
 import * as React from "react";
 import { useEffect, useLayoutEffect, useRef } from "react";
+import monkeyLadAssetUrl from "../assets/monkey-lad.png";
+import {
+  createMonkeyRunnerSheet,
+  MONKEY_FRAME_HEIGHT,
+  MONKEY_FRAME_WIDTH,
+  MONKEY_HITBOX,
+  MONKEY_JUMP_FRAME,
+  MONKEY_RUN_FRAME_COUNT,
+  MONKEY_RUN_STEP,
+  MONKEY_SCALE,
+} from "../../../src/core/monkey-lad";
 
 const REF_W = 1440;
 const REF_H = 512;
@@ -128,49 +139,6 @@ function parseColor(input: string | undefined, fallback: RGBA): RGBA {
   COLOR_CACHE.set(input, out);
   return out;
 }
-
-// A charging gorilla with a visible face and silverback.
-const GORILLA_BODY = [
-  "............#######.........",
-  "..........###########.......",
-  ".........#############......",
-  "........###++++++######.....",
-  ".......####+++++++#####.....",
-  "......#####+++++++##o###....",
-  ".....######################.",
-  "....########################",
-  "...########+++++###########.",
-  "..########+++++++##########.",
-  ".#########+++++++##########.",
-  "##########+++++++##########.",
-  "###########+++++###########.",
-  ".##########################.",
-  "..##################...####.",
-  "...################....####.",
-  "....##############.......##.",
-  ".....############...........",
-];
-
-const GORILLA_LEGS_A = [
-  "......#####....#####........",
-  ".....######....#####........",
-  "....#####.......#####.......",
-  "...#####.........#####......",
-];
-
-const GORILLA_LEGS_B = [
-  "......#####....#####........",
-  ".......#####..#####.........",
-  "........#####.####..........",
-  ".........#########..........",
-];
-
-const GORILLA_LEGS_AIR = [
-  "......#####....#####........",
-  ".......#####....#####.......",
-  "........#####.....#####.....",
-  ".........####.......####....",
-];
 
 const CLOUD = [
   "....#####.......",
@@ -327,6 +295,7 @@ export function PixelGame(props: PixelGameProps) {
 
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const monkeyFramesRef = useRef<HTMLCanvasElement | null>(null);
   const worldRef = useRef<World | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef<number>(0);
@@ -382,6 +351,19 @@ export function PixelGame(props: PixelGameProps) {
         }
       });
     }
+  }, []);
+
+  useEffect(() => {
+    const image = new Image();
+    image.onload = () => {
+      try {
+        monkeyFramesRef.current = createMonkeyRunnerSheet(image);
+      } catch {
+        monkeyFramesRef.current = null;
+      }
+    };
+    image.src = monkeyLadAssetUrl;
+    return () => { image.onload = null; };
   }, []);
 
   const inkAt = (a: number) => {
@@ -484,23 +466,28 @@ export function PixelGame(props: PixelGameProps) {
       }
     }
 
-    // Charging Gorilla sprite
-    const gorillaPx = px * 0.85;
-    const bodyH = (GORILLA_BODY.length + GORILLA_LEGS_A.length) * gorillaPx;
+    const monkeyUnit = px * MONKEY_SCALE;
     const feet = groundY - world.playerY;
-    const bodyY = feet - bodyH;
-    ctx.fillStyle = inkAt(A_SPRITE);
-    stamp(GORILLA_BODY, playerX, bodyY, gorillaPx);
-    ctx.fillStyle = inkAt(0.58);
-    stamp(GORILLA_BODY, playerX, bodyY, gorillaPx, "+");
-    ctx.fillStyle = bgFill();
-    stamp(GORILLA_BODY, playerX, bodyY, gorillaPx, "o");
-    const legs = !world.grounded
-      ? GORILLA_LEGS_AIR
-      : Math.floor(world.dist / (28 * S)) % 2
-        ? GORILLA_LEGS_A
-        : GORILLA_LEGS_B;
-    blit(legs, playerX, feet - legs.length * gorillaPx, gorillaPx, A_SPRITE);
+    const monkeyFrames = monkeyFramesRef.current;
+    if (monkeyFrames) {
+      const frame = world.grounded
+        ? Math.floor(world.dist / (MONKEY_RUN_STEP * S)) % MONKEY_RUN_FRAME_COUNT
+        : MONKEY_JUMP_FRAME;
+      const smoothing = ctx.imageSmoothingEnabled;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(
+        monkeyFrames,
+        frame * MONKEY_FRAME_WIDTH,
+        0,
+        MONKEY_FRAME_WIDTH,
+        MONKEY_FRAME_HEIGHT,
+        playerX,
+        feet - MONKEY_FRAME_HEIGHT * monkeyUnit,
+        MONKEY_FRAME_WIDTH * monkeyUnit,
+        MONKEY_FRAME_HEIGHT * monkeyUnit,
+      );
+      ctx.imageSmoothingEnabled = smoothing;
+    }
 
     if (!(p.showHud ?? showHud)) return;
 
@@ -546,7 +533,7 @@ export function PixelGame(props: PixelGameProps) {
     const top = stack * BLOCK_UNITS * px;
     const disc = v * v - 2 * g * top;
 
-    const tX = (22 * px * 0.85 + BLOCK_UNITS * px * 0.76) / sp;
+    const tX = (MONKEY_HITBOX.width * MONKEY_SCALE * px + BLOCK_UNITS * px * 0.76) / sp;
     if (disc <= 0) return { ok: false, lead: 0 };
     const root = Math.sqrt(disc);
     const t1 = (v - root) / g;
@@ -654,7 +641,8 @@ export function PixelGame(props: PixelGameProps) {
       (!world.played || idleRef.current > IDLE_RESUME);
     if (auto && world.grounded) {
       const bu = BLOCK_UNITS * px;
-      const plFront = playerX + 25 * px * 0.85;
+      const monkeyUnit = px * MONKEY_SCALE;
+      const plFront = playerX + (MONKEY_HITBOX.left + MONKEY_HITBOX.width) * monkeyUnit;
       let next: Obstacle | null = null;
       let gap = Infinity;
       for (const ob of world.obstacles) {
@@ -672,11 +660,12 @@ export function PixelGame(props: PixelGameProps) {
       }
     }
 
+    const monkeyUnit = px * MONKEY_SCALE;
     const pl = {
-      x: playerX + 3 * px * 0.85,
-      y: groundY - world.playerY - 20 * px * 0.85,
-      w: 22 * px * 0.85,
-      h: 18 * px * 0.85,
+      x: playerX + MONKEY_HITBOX.left * monkeyUnit,
+      y: groundY - world.playerY - (MONKEY_HITBOX.top + MONKEY_HITBOX.height) * monkeyUnit,
+      w: MONKEY_HITBOX.width * monkeyUnit,
+      h: MONKEY_HITBOX.height * monkeyUnit,
     };
     for (const ob of world.obstacles) {
       const bu = BLOCK_UNITS * px;
