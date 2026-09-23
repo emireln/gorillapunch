@@ -5,13 +5,16 @@
  */
 export const MONKEY_FRAME_WIDTH = 16;
 export const MONKEY_FRAME_HEIGHT = 24;
-export const MONKEY_RUN_FRAME_COUNT = 6;
+// The source row starts with two turn-in poses and ends with two back-facing
+// poses. Keep the four consistent side-on run frames for a clean loop.
+export const MONKEY_RUN_FRAME_COUNT = 4;
 export const MONKEY_JUMP_FRAME = MONKEY_RUN_FRAME_COUNT;
 export const MONKEY_SCALE = 0.95;
 export const MONKEY_HITBOX = { left: 2, top: 2, width: 12, height: 20 } as const;
 export const MONKEY_RUN_STEP = 34;
 
-const ATLAS_X = 448;
+const RUN_ATLAS_X = 480;
+const JUMP_ATLAS_X = 448;
 const WALK_Y = 208;
 const JUMP_Y = 232;
 
@@ -26,7 +29,7 @@ const BRAND_PALETTE = new Map<number, readonly [number, number, number]>([
   [0xffffff, [246, 242, 255]],    // face details
 ]);
 
-/** Build a compact 6-frame run cycle plus a single jump pose from the atlas. */
+/** Build a compact 4-frame run cycle plus a single jump pose from the atlas. */
 export function createMonkeyRunnerSheet(source: HTMLImageElement): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = MONKEY_FRAME_WIDTH * (MONKEY_RUN_FRAME_COUNT + 1);
@@ -38,7 +41,7 @@ export function createMonkeyRunnerSheet(source: HTMLImageElement): HTMLCanvasEle
   for (let frame = 0; frame < MONKEY_RUN_FRAME_COUNT; frame++) {
     ctx.drawImage(
       source,
-      ATLAS_X + frame * MONKEY_FRAME_WIDTH,
+      RUN_ATLAS_X + frame * MONKEY_FRAME_WIDTH,
       WALK_Y,
       MONKEY_FRAME_WIDTH,
       MONKEY_FRAME_HEIGHT,
@@ -50,7 +53,7 @@ export function createMonkeyRunnerSheet(source: HTMLImageElement): HTMLCanvasEle
   }
   ctx.drawImage(
     source,
-    ATLAS_X,
+    JUMP_ATLAS_X,
     JUMP_Y,
     MONKEY_FRAME_WIDTH,
     MONKEY_FRAME_HEIGHT,
