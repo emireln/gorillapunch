@@ -21,7 +21,6 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .desktop-brand { display: flex; align-items: center; gap: 9px; height: 100%; }
 .desktop-brand, .titlebar-status { pointer-events: none; app-region: drag; -webkit-app-region: drag; }
 .desktop-brand > span { color: var(--content-headings); font-size: 13px; font-weight: 700; letter-spacing: .06em; }
-.desktop-brand > span b { color: var(--content-accent); }
 .titlebar-punch { position: absolute; left: 50%; display: grid; grid-template-columns: 1fr auto; width: min(520px, calc(100% - 600px)); height: 30px; transform: translateX(-50%); }
 .titlebar-punch input { min-width: 0; height: 30px; padding: 0 12px; border-radius: var(--radius-sm) 0 0 var(--radius-sm); font-size: 12px; }
 .titlebar-punch button { padding: 0 12px; color: var(--btn-primary-text); background: var(--btn-primary-surface); border: 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size: 12px; font-weight: 700; }
