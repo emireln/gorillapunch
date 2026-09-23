@@ -334,10 +334,10 @@ main { min-width: 0; overflow: auto; background: radial-gradient(circle at 75% -
 }
 
 .desktop-arcade-canvas-wrap {
-  height: 190px;
+  height: 270px;
   width: 100%;
   position: relative;
-  background: #141119;
+  background: #0c0a12;
 }
 
 .arcade-launcher-bar {

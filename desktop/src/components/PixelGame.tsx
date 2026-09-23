@@ -13,16 +13,16 @@ const DASH_THICK = 5;
 const DASH_PERIOD = 128;
 const NEAR_DASH_ON = 45;
 const FAR_DASH_ON = 23;
-const A_HORIZON = 0.331;
-const A_NEAR = 0.199;
-const A_FAR = 0.15;
-const A_SPRITE = 0.88;
-const A_CLOUD = 0.26;
+const A_HORIZON = 1.0;
+const A_NEAR = 0.35;
+const A_FAR = 0.25;
+const A_SPRITE = 1.0;
+const A_CLOUD = 0.4;
 
 const BLOCK_UNITS = 11;
 const IDLE_RESUME = 4;
-const A_HUD_LABEL = 0.42;
-const A_HUD_VALUE = 0.85;
+const A_HUD_LABEL = 1.0;
+const A_HUD_VALUE = 1.0;
 
 type RGBA = [number, number, number, number];
 
@@ -129,37 +129,37 @@ function parseColor(input: string | undefined, fallback: RGBA): RGBA {
   return out;
 }
 
-// Custom GorillaPunch Mascot — Pixeled charging silverback with heavy brow and boxing punch
+// Custom GorillaPunch Mascot — Pixel-art silverback gorilla in side-profile charge
 const GORILLA_BODY = [
-  ".....######.....",
-  "...#########....",
-  "..###########...",
-  "..##..##.####...",
-  "...##########...",
-  "...########.....",
-  ".###########....",
-  ".#############..",
-  "###############.",
-  "################",
-  "################",
-  ".##############.",
-  "..############..",
-  "...##########...",
+  "....####........", // Sagittal crest (top of skull)
+  "...######.......", // Crown
+  "..########......", // Heavy brow ridge
+  "..##.###.#......", // Eye socket & ear
+  "..########......", // Muzzle / snout
+  "...#######......", // Strong jaw
+  "..#########.....", // Thick neck into trapezius
+  ".###########....", // Hunched back / silverback hump
+  ".############...", // Broad chest & leading shoulder
+  "##############..", // Upper arm extends forward
+  ".#############..", // Fist punching out
+  "..###########...", // Lower torso
+  "...#########....", // Waist
+  "....########....", // Hips
 ];
 
 const GORILLA_LEGS_A = [
-  "..###......###..",
-  ".####......####.",
+  "...####...####..",
+  "...###.....###..",
 ];
 
 const GORILLA_LEGS_B = [
-  "...##......####.",
-  "..###.......###.",
+  "....###...####..",
+  "...####....###..",
 ];
 
 const GORILLA_LEGS_AIR = [
-  "..####....####..",
-  "...##......##...",
+  "...#####..####..",
+  "....##.....##...",
 ];
 
 const CLOUD = [
@@ -485,7 +485,7 @@ export function PixelGame(props: PixelGameProps) {
 
     if (!(p.showHud ?? showHud)) return;
 
-    const fpx = 2.85 * S;
+    const fpx = 4.2 * S;
     const text = (s: string, rightX: number, y: number, alpha: number) => {
       const cw = 4 * fpx;
       const total = s.length * cw - fpx;
@@ -560,7 +560,7 @@ export function PixelGame(props: PixelGameProps) {
   function step(dt: number, w: number, h: number) {
     const world = worldRef.current!;
     const p = propsRef.current;
-    const S = Math.max(0.3, Math.min(w / REF_W, h / REF_H, 3));
+    const S = Math.max(0.5, Math.min(w / REF_W, h / REF_H, 3));
     const px = ART * S;
     const groundY = h * GROUND_RATIO;
     const playerX = w * 0.08;
