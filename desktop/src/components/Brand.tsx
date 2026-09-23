@@ -5,5 +5,5 @@ export function GorillaMark({ size = 28 }: { size?: number }) {
 }
 
 export function Brand() {
-  return <div className="desktop-brand"><GorillaMark/><span>GORILLA<b>PUNCH</b></span><em>DESKTOP</em></div>;
+  return <div className="desktop-brand"><GorillaMark/><span>GORILLA<b>PUNCH</b></span></div>;
 }

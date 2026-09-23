@@ -3,7 +3,7 @@
   "version": "1.0.63",
   "private": false,
   "type": "module",
-  "description": "GorillaPunch Desktop Application & Launch Readiness Engine",
+  "description": "GorillaPunch Launch Readiness App",
   "author": "GorillaPunch <gorillapunch.run@gmail.com>",
   "license": "MIT",
   "engines": {

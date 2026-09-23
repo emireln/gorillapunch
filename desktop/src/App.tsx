@@ -133,11 +133,11 @@ export function App() {
     catch (error) { notify(errorMessage(error), 'error'); }
   };
 
-  if (!settings || !cloud) return <div className="boot-screen"><div className="boot-mark">GP</div><span>Loading local workspace…</span></div>;
+  if (!settings || !cloud) return <div className="boot-screen"><div className="boot-mark">GP</div><span>Loading GorillaPunch…</span></div>;
   return <div className={`desktop-app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     <TitleBar workspace={settings.workspace} cloud={cloud} online={online} onPunch={url => void startPunch(url)}/>
     <div className="desktop-body"><Sidebar view={view} setView={next => { if (next !== 'report') setView(next); }} workspace={settings.workspace} cloud={cloud} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(value => !value)}/><main>
-      {view === 'dashboard' && <Dashboard items={items} localHistory={localHistory} workspace={settings.workspace} defaultMode={settings.defaultMode} servers={servers} onPunch={startPunch} onOpen={item => void openReport(item)} onHistory={() => setView('history')}/>}
+      {view === 'dashboard' && <Dashboard items={items} localHistory={localHistory} workspace={settings.workspace} autoSync={settings.autoSync} cloudConnected={cloud.authenticated} defaultMode={settings.defaultMode} servers={servers} onPunch={startPunch} onOpen={item => void openReport(item)} onHistory={() => setView('history')}/>}
       {view === 'history' && <History items={items} onOpen={item => void openReport(item)}/>}
       {view === 'watchers' && <Watchers watchers={watchers} onAdd={addWatcher} onUpdate={updateWatcher} onRemove={removeWatcher}/>}
       {view === 'settings' && <Settings settings={settings} cloud={cloud} onSettings={updateSettings} onCloud={state => { setCloud(state); if (state.authenticated) { void updateSettings({ workspace: 'cloud', autoSync: true }); void refreshCloud(state); } else { setCloudHistory([]); void updateSettings({ workspace: 'local' }); } }} notify={notify}/>}

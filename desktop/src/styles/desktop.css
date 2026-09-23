@@ -22,7 +22,6 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .desktop-brand, .titlebar-status { pointer-events: none; app-region: drag; -webkit-app-region: drag; }
 .desktop-brand > span { color: var(--content-headings); font-size: 13px; font-weight: 700; letter-spacing: .06em; }
 .desktop-brand > span b { color: var(--content-accent); }
-.desktop-brand em { padding: 2px 5px; color: var(--content-disabled); border: 1px solid var(--border-neutral-muted); border-radius: var(--radius-2xs); font-size: 12px; font-style: normal; letter-spacing: .1em; }
 .titlebar-punch { position: absolute; left: 50%; display: grid; grid-template-columns: 1fr auto; width: min(520px, calc(100% - 600px)); height: 30px; transform: translateX(-50%); }
 .titlebar-punch input { min-width: 0; height: 30px; padding: 0 12px; border-radius: var(--radius-sm) 0 0 var(--radius-sm); font-size: 12px; }
 .titlebar-punch button { padding: 0 12px; color: var(--btn-primary-text); background: var(--btn-primary-surface); border: 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size: 12px; font-weight: 700; }
@@ -39,7 +38,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .sidebar-toggle { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 30px; margin-bottom: 10px; padding: 0 10px; color: var(--content-secondary); background: transparent; border: 0; border-radius: var(--radius-md); font-size: 12px; font-weight: 600; text-align: left; }
 .sidebar-toggle:hover { color: var(--content-headings); background: var(--tint-neutral); }
 .sidebar-collapsed .desktop-body { grid-template-columns: 64px minmax(0, 1fr); }
-.sidebar-collapsed .desktop-brand > span, .sidebar-collapsed .desktop-brand em { display: none; }
+.sidebar-collapsed .desktop-brand > span { display: none; }
 .sidebar-collapsed .sidebar { align-items: center; padding-inline: 7px; }
 .sidebar-collapsed .sidebar-toggle { justify-content: center; padding: 0; }
 .sidebar-collapsed .sidebar nav { width: 100%; }
@@ -183,11 +182,17 @@ main { min-width: 0; overflow: auto; background: radial-gradient(circle at 75% -
 .form-heading svg { color: var(--content-accent); }
 .form-heading div { display: grid; }
 .cloud-account form .terms-check { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; color: var(--content-secondary); font-size: 12px; }
+.cloud-account form .terms-check span { color: var(--content-secondary); }
+.cloud-account form .terms-check a { color: var(--content-accent); }
 .cloud-account form .terms-check input { width: 14px; height: 14px; }
 .cloud-account form button { min-height: 34px; }
+.account-message { grid-column: 1 / -1; margin: 0; padding: 10px 12px; color: var(--content-success); background: var(--tint-success); border: 1px solid var(--border-primary); border-radius: var(--radius-md); font-size: 12px; line-height: 1.5; }
 .unconfigured { display: grid; grid-template-columns: auto 1fr; gap: 3px 11px; }
 .unconfigured svg { grid-row: 1 / 3; color: var(--content-disabled); }
 .unconfigured p { grid-column: 2; margin: 0; font-size: 12px; }
+.audit-options { display: grid; gap: 10px; }
+.advanced-settings summary { color: var(--content-secondary); cursor: pointer; font-size: 12px; font-weight: 600; }
+.advanced-settings[open] summary { margin-bottom: 14px; }
 .fields-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
 .fields-grid label { display: grid; gap: 6px; color: var(--content-secondary); font-size: 12px; }
 .fields-grid input, .fields-grid select { height: 37px; padding: 0 10px; }

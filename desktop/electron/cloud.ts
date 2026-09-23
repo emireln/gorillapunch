@@ -78,7 +78,7 @@ export class CloudService {
   async signIn(credentials: CloudCredentials) {
     const client = this.requireClient();
     const { data, error } = await client.auth.signInWithPassword({ email: credentials.email.trim().toLowerCase(), password: credentials.password });
-    if (error || !data.session) throw new Error(error?.message || 'The cloud session could not be created.');
+    if (error || !data.session) throw new Error(error ? authErrorMessage(error, 'sign-in') : 'We could not sign in. Please try again.');
     this.currentSession = data.session;
     await this.persistSession(data.session);
     return this.state();
@@ -91,7 +91,7 @@ export class CloudService {
       password: credentials.password,
       options: { data: { display_name: credentials.displayName.trim().slice(0, 80) }, emailRedirectTo: `${this.apiUrl}/auth/callback` },
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(authErrorMessage(error, 'sign-up'));
     this.currentSession = data.session;
     if (data.session) await this.persistSession(data.session);
     return { state: this.state(), needsEmailConfirmation: !data.session };
@@ -107,7 +107,7 @@ export class CloudService {
   async history(): Promise<DesktopScan[]> {
     const client = await this.authenticatedClient();
     const { data, error } = await client.from('scans').select('*').order('created_at', { ascending: false }).limit(500);
-    if (error) throw new Error(`Cloud history unavailable (${error.code}).`);
+    if (error) throw new Error('Your account reports could not be loaded. Please try again.');
     return (data || []).map(row => cloudScan(row as DesktopScan));
   }
 
@@ -121,7 +121,7 @@ export class CloudService {
       client.from('scan_resources').select('url,status,bytes,duration,type').eq('scan_id', scanId).order('created_at'),
     ]);
     const error = scanResult.error || findingsResult.error || pagesResult.error || metricsResult.error || resourcesResult.error;
-    if (error) throw new Error(`Cloud report unavailable (${error.code}).`);
+    if (error) throw new Error('This report could not be loaded. Please try again.');
     if (!scanResult.data) return null;
     const findings = (findingsResult.data || []) as DesktopReport['findings'];
     return {
@@ -149,32 +149,32 @@ export class CloudService {
       resources: report.resources.slice(0, 5000),
     };
     const { data, error } = await client.rpc('sync_desktop_punch', { payload });
-    if (error) throw new Error(`Cloud sync failed (${error.code}): ${safeMessage(error.message)}`);
+    if (error) throw new Error('Report sync failed. Check your connection and try again.');
     return cloudScan(data as DesktopScan);
   }
 
   async remove(scanId: string) {
     const client = await this.authenticatedClient();
     const { data, error } = await client.rpc('delete_owned_punch', { scan_uuid: scanId });
-    if (error) throw new Error(`Cloud delete failed (${error.code}).`);
-    if (!data) throw new Error('This cloud punch was not found.');
+    if (error) throw new Error('This report could not be deleted. Please try again.');
+    if (!data) throw new Error('This report is no longer available.');
   }
 
   async updateFinding(findingId: string, status: 'open' | 'resolved' | 'ignored') {
     const client = await this.authenticatedClient();
     const { data, error } = await client.rpc('update_owned_finding', { finding_uuid: findingId, next_status: status });
-    if (error || !data) throw new Error(`Finding update failed${error ? ` (${error.code})` : ''}.`);
+    if (error || !data) throw new Error('This finding could not be updated. Please try again.');
   }
 
   private requireClient() {
-    if (!this.client) throw new Error('Cloud mode is not configured in this build. Add the public Supabase URL and anon key, then rebuild.');
+    if (!this.client) throw new Error('Cloud sync is unavailable right now. Try again later or contact support.');
     return this.client;
   }
 
   private async authenticatedClient() {
     const client = this.requireClient();
     const { data, error } = await client.auth.getSession();
-    if (error || !data.session) throw new Error('Sign in to use the cloud workspace.');
+    if (error || !data.session) throw new Error('Sign in to sync reports.');
     this.currentSession = data.session;
     return client;
   }
@@ -185,6 +185,23 @@ export class CloudService {
     const value = JSON.stringify({ access_token: session.access_token, refresh_token: session.refresh_token });
     await this.database.setValue(SESSION_KEY, safeStorage.encryptString(value).toString('base64'));
   }
+}
+
+function authErrorMessage(error: { message: string; status?: number }, action: 'sign-in' | 'sign-up') {
+  const message = error.message.toLowerCase();
+  if (error.status === 429 || message.includes('rate limit') || message.includes('too many requests')) {
+    return 'Too many attempts. Wait a moment and try again.';
+  }
+  if (/fetch|network|timeout|connection/.test(message)) {
+    return 'We could not reach your account right now. Check your connection and try again.';
+  }
+  if (action === 'sign-in') return 'Email or password is incorrect. Please try again.';
+  if (/already registered|already exists|user exists/.test(message)) {
+    return 'An account with this email already exists. Sign in instead.';
+  }
+  if (/invalid.*email|email.*invalid/.test(message)) return 'Enter a valid email address.';
+  if (message.includes('password')) return 'Choose a stronger password and try again.';
+  return 'We could not create your account. Please try again.';
 }
 
 function cloudScan(scan: DesktopScan): DesktopScan {
@@ -199,8 +216,4 @@ function validCloudConfig(url: string, key: string) {
 function safeApiUrl(value: string) {
   try { const url = new URL(value); return url.protocol === 'https:' || url.hostname === 'localhost' ? url.origin : 'https://gorillapunch.run'; }
   catch { return 'https://gorillapunch.run'; }
-}
-
-function safeMessage(value: string) {
-  return value.replace(/eyJ[\w.-]+|sb_[\w-]+/g, '[redacted]').slice(0, 240);
 }

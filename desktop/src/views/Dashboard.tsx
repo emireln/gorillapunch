@@ -6,10 +6,12 @@ import { PunchForm } from '../components/PunchForm';
 import { ScanList } from '../components/ScanList';
 import { PixelGame } from '../components/PixelGame';
 
-export function Dashboard({ items, localHistory, workspace, defaultMode, servers, onPunch, onOpen, onHistory }: {
+export function Dashboard({ items, localHistory, workspace, autoSync, cloudConnected, defaultMode, servers, onPunch, onOpen, onHistory }: {
   items: ScanItem[];
   localHistory: DesktopScan[];
   workspace: WorkspaceMode;
+  autoSync: boolean;
+  cloudConnected: boolean;
   defaultMode: Exclude<ScanMode, 'deep'>;
   servers: LocalServer[];
   onPunch(url: string, mode: 'quick' | 'full'): Promise<void>;
@@ -33,7 +35,7 @@ export function Dashboard({ items, localHistory, workspace, defaultMode, servers
 
   return (
     <div className="view dashboard-view">
-      <PunchForm workspace={workspace} defaultMode={defaultMode} servers={servers} onPunch={onPunch}/>
+      <PunchForm workspace={workspace} autoSync={autoSync} cloudConnected={cloudConnected} defaultMode={defaultMode} servers={servers} onPunch={onPunch}/>
       {active.length > 0 && (
         <section className="active-queue">
           <div>

@@ -72,6 +72,6 @@ function diagnostic(message: string) {
 function handleBootError(error: unknown) {
   const message = error instanceof Error ? error.stack || error.message : String(error);
   process.stderr.write(`GorillaPunch failed to start:\n${message}\n`);
-  if (!process.argv.includes('--hidden')) dialog.showErrorBox('GorillaPunch could not start', 'The local workspace could not be initialized. Reinstall the app or contact support if this continues.');
+  if (!process.argv.includes('--hidden')) dialog.showErrorBox('GorillaPunch could not start', 'Your reports could not be opened. Restart GorillaPunch. If the problem continues, contact support.');
   app.exit(1);
 }

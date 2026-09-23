@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Cloud, HardDrives, LockKey, SignOut, Sun, Moon, Desktop, ArrowsClockwise } from '@phosphor-icons/react';
+import { ArrowsClockwise, Cloud, CloudArrowUp, Desktop, HardDrives, LockKey, Moon, SignOut, Sun } from '@phosphor-icons/react';
 import type { CloudState, DesktopSettings } from '../../shared/types';
 
 export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
@@ -15,28 +15,108 @@ export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
   const [name, setName] = useState('');
   const [terms, setTerms] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [accountMessage, setAccountMessage] = useState('');
+
   const authenticate = async (event: FormEvent) => {
-    event.preventDefault(); setBusy(true);
+    event.preventDefault();
+    setBusy(true);
+    setAccountMessage('');
     try {
       if (signup) {
         if (!terms) throw new Error('Accept the Terms and Privacy Policy to create an account.');
         const result = await window.gorillaPunch.cloud.signUp({ email, password, displayName: name });
-        onCloud(result.state);
-        notify(result.needsEmailConfirmation ? 'Check your email to confirm the account.' : 'Cloud account connected.', 'success');
+        setPassword('');
+        if (result.needsEmailConfirmation) {
+          setSignup(false);
+          setTerms(false);
+          setAccountMessage('Check your email and confirm your account. Then sign in here to sync reports.');
+        } else {
+          onCloud(result.state);
+          notify('Account connected. Cloud sync is ready.', 'success');
+        }
       } else {
         const state = await window.gorillaPunch.cloud.signIn({ email, password });
-        onCloud(state); notify('Cloud account connected.', 'success');
+        onCloud(state);
+        setPassword('');
+        notify('Account connected. Cloud sync is ready.', 'success');
       }
-      setPassword('');
-    } catch (error) { notify(error instanceof Error ? error.message : 'Authentication failed.', 'error'); }
-    finally { setBusy(false); }
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'We could not connect your account. Please try again.', 'error');
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const signOut = async () => {
+    try {
+      onCloud(await window.gorillaPunch.cloud.signOut());
+      notify('Signed out.', 'success');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Sign out failed. Please try again.', 'error');
+    }
+  };
+
+  const chooseCloud = () => {
+    void onSettings({ workspace: 'cloud', autoSync: true });
+    if (!cloud.authenticated) document.getElementById('cloud-account')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   return <div className="view settings-view">
-    <div className="page-heading"><div><span className="eyebrow">DESKTOP PREFERENCES</span><h1>Settings</h1><p>Choose where reports go and how punches run.</p></div></div>
-    <section className="settings-section"><div className="settings-intro"><h2>Workspace</h2><p>Choose where new reports are stored.</p></div><div className="workspace-choice"><button className={settings.workspace === 'local' ? 'selected' : ''} onClick={() => void onSettings({ workspace: 'local' })}><HardDrives size={25}/><strong>On this device</strong><span>Reports and screenshots stay here. The site you check may still receive browser requests.</span><em>No account needed</em></button><button disabled={!cloud.configured} className={settings.workspace === 'cloud' ? 'selected' : ''} onClick={() => void onSettings({ workspace: 'cloud', autoSync: true })}><Cloud size={25}/><strong>Cloud</strong><span>Checks run on this device, then completed reports sync to your account.</span><em>{cloud.configured ? cloud.authenticated ? 'Connected' : 'Sign in below' : 'Unavailable in this version'}</em></button></div></section>
-    <section className="settings-section"><div className="settings-intro"><h2>Cloud account</h2><p>Sign in to keep selected reports in your account.</p></div><div className="settings-card cloud-account">{cloud.authenticated ? <><div className="account-avatar">{cloud.email?.[0]?.toUpperCase()}</div><div><strong>{cloud.email}</strong><span>Connected</span></div><button className="secondary-btn" onClick={() => void window.gorillaPunch.cloud.signOut().then(state => { onCloud(state); notify('Signed out.', 'success'); })}><SignOut size={17}/> Sign out</button></> : cloud.configured ? <form onSubmit={authenticate}><div className="form-heading"><LockKey size={22}/><div><strong>{signup ? 'Create cloud account' : 'Sign in to cloud'}</strong><span>Use the same account as gorillapunch.run.</span></div></div>{signup && <input value={name} onChange={event => setName(event.target.value)} placeholder="Display name" required maxLength={80}/>}<input type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="Email" required/><input type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Password (10+ characters)" required minLength={10}/>{signup && <label className="terms-check"><input type="checkbox" checked={terms} onChange={event => setTerms(event.target.checked)}/> I accept the Terms and Privacy Policy.</label>}<button className="primary-btn" disabled={busy}>{busy ? 'Connecting…' : signup ? 'Create account' : 'Sign in'}</button><button type="button" className="text-btn" onClick={() => setSignup(value => !value)}>{signup ? 'Already have an account?' : 'Need an account?'}</button></form> : <div className="unconfigured"><Cloud size={28}/><strong>Cloud unavailable</strong><p>This version does not have cloud access. You can still save reports on this device.</p></div>}</div></section>
-    <section className="settings-section"><div className="settings-intro"><h2>Scan engine</h2><p>Limits keep local browser workloads predictable.</p></div><div className="settings-card fields-grid"><label><span>Default punch</span><select value={settings.defaultMode} onChange={event => void onSettings({ defaultMode: event.target.value as 'quick' | 'full' })}><option value="quick">Quick</option><option value="full">Full</option></select></label><label><span>Maximum pages</span><input type="number" min={1} max={30} value={settings.maxPages} onChange={event => void onSettings({ maxPages: Number(event.target.value) })}/></label><label><span>Crawl depth</span><input type="number" min={0} max={4} value={settings.maxDepth} onChange={event => void onSettings({ maxDepth: Number(event.target.value) })}/></label><label><span>Timeout (seconds)</span><input type="number" min={30} max={600} value={settings.maxDurationSeconds} onChange={event => void onSettings({ maxDurationSeconds: Number(event.target.value) })}/></label><label><span>Parallel punches</span><select value={settings.concurrency} onChange={event => void onSettings({ concurrency: Number(event.target.value) })}><option value={1}>1 — recommended</option><option value={2}>2</option><option value={3}>3</option></select></label></div></section>
-    <section className="settings-section"><div className="settings-intro"><h2>Appearance & system</h2><p>Native window and notification behavior.</p></div><div className="settings-card preference-list"><div className="theme-choice"><span>Theme</span>{([['system', Desktop], ['dark', Moon], ['light', Sun]] as const).map(([value, Icon]) => <button key={value} className={settings.theme === value ? 'active' : ''} onClick={() => void onSettings({ theme: value })}><Icon size={17}/>{value}</button>)}</div><Switch label="Minimize to tray on close" checked={settings.closeToTray} onChange={value => void onSettings({ closeToTray: value })}/><Switch label="Completion notifications" checked={settings.notifications} onChange={value => void onSettings({ notifications: value })}/><Switch label="Detect local dev servers" checked={settings.portScan} onChange={value => void onSettings({ portScan: value })}/><Switch label="Launch at Windows sign-in" checked={settings.launchAtStartup} onChange={value => void onSettings({ launchAtStartup: value })}/>{settings.workspace === 'cloud' && <Switch label="Sync completed cloud-workspace reports" checked={settings.autoSync} onChange={value => void onSettings({ autoSync: value })}/>}<button className="secondary-btn update-button" onClick={() => void window.gorillaPunch.system.checkForUpdates().then(message => notify(message, 'success'))}><ArrowsClockwise size={17}/> Check for updates</button></div></section>
+    <div className="page-heading"><div><span className="eyebrow">PREFERENCES</span><h1>Settings</h1><p>Choose where reports go and adjust how audits run.</p></div></div>
+
+    <section className="settings-section">
+      <div className="settings-intro"><h2>Report storage</h2><p>Choose where new reports are saved.</p></div>
+      <div className="workspace-choice">
+        <button className={settings.workspace === 'local' ? 'selected' : ''} onClick={() => void onSettings({ workspace: 'local' })}>
+          <HardDrives size={25}/><strong>On this device</strong><span>Reports and screenshots stay on this PC. No account needed.</span><em>Ready to use</em>
+        </button>
+        <button disabled={!cloud.configured} className={settings.workspace === 'cloud' ? 'selected' : ''} onClick={chooseCloud}>
+          <CloudArrowUp size={25}/><strong>Cloud sync</strong><span>Sign in to sync completed report results to your account. Screenshots stay on this PC.</span><em>{!cloud.configured ? 'Unavailable right now' : cloud.authenticated ? 'Account connected' : 'Sign in below'}</em>
+        </button>
+      </div>
+    </section>
+
+    <section className="settings-section" id="cloud-account">
+      <div className="settings-intro"><h2>GorillaPunch account</h2><p>Sign in or create an account to sync reports.</p></div>
+      <div className="settings-card cloud-account">
+        {cloud.authenticated ? <>
+          <div className="account-avatar">{cloud.email?.[0]?.toUpperCase()}</div>
+          <div><strong>{cloud.email}</strong><span>Ready to sync</span></div>
+          <button className="secondary-btn" onClick={() => void signOut()}><SignOut size={17}/> Sign out</button>
+        </> : cloud.configured ? <form onSubmit={authenticate}>
+          <div className="form-heading"><LockKey size={22}/><div><strong>{signup ? 'Create account' : 'Sign in'}</strong><span>Use your GorillaPunch account to sync reports.</span></div></div>
+          {accountMessage && <p className="account-message" role="status">{accountMessage}</p>}
+          {signup && <input aria-label="Name" autoComplete="name" value={name} onChange={event => setName(event.target.value)} placeholder="Name" required maxLength={80} />}
+          <input aria-label="Email" autoComplete="email" type="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="Email" required maxLength={254}/>
+          <input aria-label="Password" autoComplete={signup ? 'new-password' : 'current-password'} type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder={signup ? 'Password (10 or more characters)' : 'Password'} required minLength={signup ? 10 : 1} maxLength={128}/>
+          {signup && <label className="terms-check"><input type="checkbox" checked={terms} onChange={event => setTerms(event.target.checked)}/> <span>I agree to the <a href="https://www.gorillapunch.run/terms" target="_blank" rel="noreferrer">Terms</a> and <a href="https://www.gorillapunch.run/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.</span></label>}
+          <button className="primary-btn" disabled={busy}>{busy ? 'Please wait…' : signup ? 'Create account' : 'Sign in'}</button>
+          {!signup && <button type="button" className="text-btn" onClick={() => void window.gorillaPunch.system.openExternal('https://www.gorillapunch.run/forgot-password')}>Forgot password?</button>}
+          <button type="button" className="text-btn" onClick={() => { setSignup(value => !value); setAccountMessage(''); setPassword(''); setTerms(false); }}>{signup ? 'Already have an account? Sign in' : 'Need an account? Create one'}</button>
+        </form> : <div className="unconfigured"><Cloud size={28}/><strong>Cloud sync unavailable</strong><p>Try again later or contact support. You can still save reports on this device.</p></div>}
+      </div>
+    </section>
+
+    <section className="settings-section">
+      <div className="settings-intro"><h2>Audit options</h2><p>Choose how much of each site to check.</p></div>
+      <div className="audit-options">
+        <div className="settings-card fields-grid"><label><span>Default audit</span><select value={settings.defaultMode} onChange={event => void onSettings({ defaultMode: event.target.value as 'quick' | 'full' })}><option value="quick">Quick</option><option value="full">Full</option></select></label></div>
+        <details className="settings-card advanced-settings"><summary>More options</summary><div className="fields-grid"><label><span>Pages to check</span><input type="number" min={1} max={30} value={settings.maxPages} onChange={event => void onSettings({ maxPages: Number(event.target.value) })}/></label><label><span>Link depth</span><input type="number" min={0} max={4} value={settings.maxDepth} onChange={event => void onSettings({ maxDepth: Number(event.target.value) })}/></label><label><span>Time limit (seconds)</span><input type="number" min={30} max={600} value={settings.maxDurationSeconds} onChange={event => void onSettings({ maxDurationSeconds: Number(event.target.value) })}/></label><label><span>Simultaneous audits</span><select value={settings.concurrency} onChange={event => void onSettings({ concurrency: Number(event.target.value) })}><option value={1}>1 — recommended</option><option value={2}>2</option><option value={3}>3</option></select></label></div></details>
+      </div>
+    </section>
+
+    <section className="settings-section">
+      <div className="settings-intro"><h2>App preferences</h2><p>Window and notification preferences.</p></div>
+      <div className="settings-card preference-list">
+        <div className="theme-choice"><span>Theme</span>{([['system', Desktop], ['dark', Moon], ['light', Sun]] as const).map(([value, Icon]) => <button key={value} className={settings.theme === value ? 'active' : ''} onClick={() => void onSettings({ theme: value })}><Icon size={17}/>{value}</button>)}</div>
+        <Switch label="Minimize to tray on close" checked={settings.closeToTray} onChange={value => void onSettings({ closeToTray: value })}/>
+        <Switch label="Completion notifications" checked={settings.notifications} onChange={value => void onSettings({ notifications: value })}/>
+        <Switch label="Find development sites automatically" checked={settings.portScan} onChange={value => void onSettings({ portScan: value })}/>
+        <Switch label="Launch when Windows starts" checked={settings.launchAtStartup} onChange={value => void onSettings({ launchAtStartup: value })}/>
+        {settings.workspace === 'cloud' && <Switch label="Automatically sync completed reports" checked={settings.autoSync} onChange={value => void onSettings({ autoSync: value })}/>}
+        <button className="secondary-btn update-button" onClick={() => void window.gorillaPunch.system.checkForUpdates().then(message => notify(message, 'success'))}><ArrowsClockwise size={17}/> Check for updates</button>
+      </div>
+    </section>
   </div>;
 }
 

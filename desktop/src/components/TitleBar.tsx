@@ -14,7 +14,7 @@ export function TitleBar({ workspace, cloud, online, onPunch }: { workspace: Wor
   return <header className="titlebar">
     <Brand/>
     <form className="titlebar-punch no-drag" onSubmit={submit}><input value={url} onChange={event => setUrl(event.target.value)} placeholder="Quick punch a URL…" aria-label="Quick punch URL"/><button type="submit">Punch</button></form>
-    <div className="titlebar-status"><span className={`connection-dot ${online ? 'online' : ''}`}/><span>{workspace === 'local' ? 'Saved on device' : cloud?.authenticated ? 'Cloud connected' : 'Cloud signed out'}</span></div>
+    <div className="titlebar-status"><span className={`connection-dot ${online ? 'online' : ''}`}/><span>{workspace === 'local' ? 'On this device' : cloud?.authenticated ? 'Account sync on' : 'Sign in to sync'}</span></div>
     <div className="window-controls no-drag">
       <button aria-label="Minimize" onClick={() => void window.gorillaPunch.window.minimize()}><Minus size={16}/></button>
       <button aria-label={maximized ? 'Restore' : 'Maximize'} onClick={() => void window.gorillaPunch.window.maximize()}>{maximized ? <SquaresFour size={14}/> : <Square size={14}/>}</button>
