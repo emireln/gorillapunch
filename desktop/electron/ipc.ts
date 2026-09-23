@@ -84,7 +84,9 @@ export function registerIpc(services: Services) {
   handle<[string, string | undefined]>('reports:inspect', (_event, url, selector) => openInspector(services.window, String(url), selector ? String(selector) : undefined));
   handle<[string]>('system:open-external', async (_event, value) => {
     const url = new URL(String(value));
-    if (url.protocol !== 'https:' || url.username || url.password) throw new Error('Only secure web links can be opened.');
+    const secureWebLink = url.protocol === 'https:' && !url.username && !url.password;
+    const supportEmail = url.protocol === 'mailto:' && url.pathname.toLowerCase() === 'gorillapunch.run@gmail.com' && !url.search && !url.hash;
+    if (!secureWebLink && !supportEmail) throw new Error('Only secure web links and the support email can be opened.');
     await shell.openExternal(url.href);
   });
   handle('system:check-updates', () => services.checkForUpdates());
