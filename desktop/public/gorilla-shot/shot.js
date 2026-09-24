@@ -2,7 +2,7 @@
 // Progress messages contain only game statistics; account data stays in Electron.
 var shot_palette = {
 	background: [0, 0, 0],
-	ambient: [0.3, 0.3, 0.3],
+	ambient: [0.47, 0.40, 0.67],
 	purple: [1, 1, 1],
 	red: [1, 1, 1]
 };

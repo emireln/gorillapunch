@@ -79,6 +79,7 @@ var
 				"vec3 mapped=mix(brandPurple,brandRed,warm)*lum*1.8;" +
 				"gl_FragColor.rgb=mix(gl_FragColor.rgb,mapped,.62);" +
 			"}" +
+			"gl_FragColor.rgb=min(gl_FragColor.rgb*1.35,vec3(1.));" + // brighten the original low-light palette
 			"gl_FragColor.rgb=floor(gl_FragColor.rgb*6.35)/6.35;" + // reduce colors to ~256
 		"}";
 

@@ -9,16 +9,16 @@ html[data-theme='dark'] {
   --bg-tertiary: #1B1821;
   --bg-overlay: #393442;
   --terminal-text: #f1f0f5;
-  --shot-bg: #100D1B;
-  --shot-surface: #211B31;
+  --shot-bg: #252033;
+  --shot-surface: #302844;
   --shot-overlay: #171122EE;
   --shot-purple: #7553FF;
-  --shot-purple-light: #ABA8F8;
+  --shot-purple-light: #C7B6FF;
   --shot-red: #FF002B;
   --shot-text: #F6F2FF;
   --shot-muted: #B5B0BD;
   --shot-glow: #7553FF55;
-  --shot-ambient: #33234F;
+  --shot-ambient: #7866B1;
 
 
   --content-headings: #FFFFFF;

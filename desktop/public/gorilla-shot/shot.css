@@ -7,11 +7,12 @@ body { background: var(--shot-bg); color: var(--shot-text); font-family: Consola
 @keyframes shot-blink { 50% { opacity: 0; } }
 .shot-overlay { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 20px; background: linear-gradient(135deg, var(--shot-overlay), var(--shot-bg)); }
 .shot-overlay[hidden] { display: none; }
-.shot-overlay-panel { width: min(100%, 360px); padding: 24px; border: 1px solid var(--shot-purple); background: var(--shot-surface); box-shadow: 0 0 32px var(--shot-glow); text-align: center; }
+.shot-overlay-panel { width: min(100%, 380px); padding: 25px; border: 1px solid var(--shot-purple); border-radius: 16px; background: var(--shot-surface); box-shadow: 0 0 36px var(--shot-glow), 0 4px 0 #120539; text-align: center; }
 .shot-overline { color: var(--shot-purple-light); font-size: 10px; font-weight: 700; letter-spacing: .22em; }
 .shot-overlay h1 { margin: 10px 0 8px; color: var(--shot-text); font-size: clamp(28px, 5vw, 44px); letter-spacing: .08em; text-shadow: 3px 3px 0 var(--shot-purple); }
 .shot-overlay p { margin: 0 0 16px; color: var(--shot-muted); font-size: 12px; line-height: 1.5; }
-.shot-overlay button { min-height: 42px; width: 100%; border: 1px solid var(--shot-purple-light); background: var(--shot-purple); color: var(--shot-text); font: 700 13px Consolas, 'Courier New', monospace; letter-spacing: .1em; cursor: pointer; }
-.shot-overlay button:hover, .shot-overlay button:focus-visible { background: var(--shot-red); border-color: var(--shot-red); outline: none; }
+.shot-overlay button { min-height: 42px; width: 100%; padding: 0 16px; border: 1px solid #120539; border-radius: 8px; background: var(--shot-purple); box-shadow: 0 3px 0 #120539; color: var(--shot-text); font: 700 13px 'Segoe UI Variable', 'Segoe UI', Arial, sans-serif; letter-spacing: .02em; cursor: pointer; transition: transform .15s ease, background .15s ease, box-shadow .15s ease; }
+.shot-overlay button:hover, .shot-overlay button:focus-visible { transform: translateY(-1px); background: #8A70FF; outline: 2px solid var(--shot-purple-light); outline-offset: 2px; }
+.shot-overlay button:active { transform: translateY(2px); box-shadow: none; }
 .shot-overlay button:disabled { opacity: .5; cursor: wait; }
 .shot-overlay-note { display: block; margin-top: 13px; color: var(--shot-muted); font-size: 10px; }

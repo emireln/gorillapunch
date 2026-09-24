@@ -6,6 +6,7 @@ import { readShotSummary } from '../shared/shot-progress';
 
 const SESSION_KEY = 'cloud_session_v1';
 const SHOT_METADATA_PREFIX = 'gorilla_shot_v1_';
+const SHOT_PROGRESS_TABLE = 'gorilla_shot_progress';
 const DEFAULT_SUPABASE_URL = 'https://siuktrgrqxjrecvoqdek.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpdWt0cmdycXhqcmVjdm9xZGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MjgyNzUsImV4cCI6MjEwNTAwNDI3NX0.x3_ySfCdDAezadpABVFzoVSfktFSqCfE92qJdDtNE9I';
 const DEFAULT_API_URL = 'https://www.gorillapunch.run';
@@ -196,15 +197,63 @@ export class CloudService {
     const client = await this.authenticatedClient();
     const { data, error } = await client.auth.getUser();
     if (error || !data.user) throw new Error('Game progress could not be loaded from your account.');
-    return readShotMetadata(data.user.user_metadata);
+    return this.loadShotSummaries(client, data.user.id, data.user.user_metadata);
   }
 
   async saveShotSummary(summary: ShotDeviceSummary): Promise<ShotDeviceSummary[]> {
     const client = await this.authenticatedClient();
-    const key = `${SHOT_METADATA_PREFIX}${summary.deviceId.replaceAll('-', '')}`;
-    const { data, error } = await client.auth.updateUser({ data: { [key]: summary } });
-    if (error || !data.user) throw new Error(`Game progress sync failed: ${safeCloudError(error?.message || 'Account unavailable')}`);
-    return readShotMetadata(data.user.user_metadata);
+    const { data, error } = await client.auth.getUser();
+    if (error || !data.user) throw new Error('Sign in to sync Gorilla Shot progress.');
+    const existing = await this.loadShotSummaries(client, data.user.id, data.user.user_metadata);
+    const previous = existing.find(item => item.deviceId === summary.deviceId);
+    const latest = previous && previous.updatedAt > summary.updatedAt ? previous : summary;
+    await this.writeShotSummary(client, data.user.id, latest);
+    return this.loadShotSummaries(client, data.user.id, data.user.user_metadata);
+  }
+
+  private async loadShotSummaries(client: SupabaseClient, userId: string, metadata: Record<string, unknown> | null): Promise<ShotDeviceSummary[]> {
+    const { data, error } = await client.from(SHOT_PROGRESS_TABLE)
+      .select('device_id,version,updated_at,stats,recent_runs')
+      .eq('owner_id', userId);
+    if (error) {
+      if (error.code === '42P01' || error.code === 'PGRST205') throw new Error('Gorilla Shot cloud storage is not set up yet. Apply migration 202609240001_gorilla_shot_progress.sql.');
+      throw new Error(`Game progress could not be loaded: ${safeCloudError(error.message)}`);
+    }
+    const saved = (data || []).flatMap(row => {
+      const summary = readShotSummary({
+        version: row.version,
+        deviceId: row.device_id,
+        updatedAt: row.updated_at,
+        stats: row.stats,
+        recentRuns: row.recent_runs,
+      });
+      return summary ? [summary] : [];
+    });
+    const byDevice = new Map(saved.map(summary => [summary.deviceId, summary]));
+    // Import summaries written by earlier desktop versions to auth metadata.
+    for (const legacy of readShotMetadata(metadata)) {
+      const current = byDevice.get(legacy.deviceId);
+      if (!current || current.updatedAt < legacy.updatedAt) {
+        await this.writeShotSummary(client, userId, legacy);
+        byDevice.set(legacy.deviceId, legacy);
+      }
+    }
+    return [...byDevice.values()];
+  }
+
+  private async writeShotSummary(client: SupabaseClient, userId: string, summary: ShotDeviceSummary) {
+    const { error } = await client.from(SHOT_PROGRESS_TABLE).upsert({
+      owner_id: userId,
+      device_id: summary.deviceId,
+      version: summary.version,
+      updated_at: summary.updatedAt,
+      stats: summary.stats,
+      recent_runs: summary.recentRuns,
+    }, { onConflict: 'owner_id,device_id' });
+    if (error) {
+      if (error.code === '42P01' || error.code === 'PGRST205') throw new Error('Gorilla Shot cloud storage is not set up yet. Apply migration 202609240001_gorilla_shot_progress.sql.');
+      throw new Error(`Game progress sync failed: ${safeCloudError(error.message)}`);
+    }
   }
 
   private async loadAvatar() {
