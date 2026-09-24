@@ -3,6 +3,7 @@ var udef, // global undefined
 	_math = Math,
 	_document = document,
 	_temp,
+	shot_image_cache = {},
 
 	keys = {37: 0, 38: 0, 39: 0, 40: 0},
 	key_up = 38, key_down = 40, key_left = 37, key_right = 39, key_shoot = 512,
@@ -24,10 +25,21 @@ var udef, // global undefined
 	entities = [],
 	entities_to_kill = [];
 
-function load_image(name, callback) {
-	_temp = new Image();
-	_temp.src = 'm/'+name+'.png';
-	_temp.onload = callback;
+function load_image(name, callback, onerror) {
+	var image = shot_image_cache[name];
+	if (image && image.complete && image.naturalWidth > 0) {
+		_temp = image;
+		callback && callback.call(image);
+		return image;
+	}
+	if (!image || (image.complete && image.naturalWidth === 0)) {
+		image = shot_image_cache[name] = new Image();
+	}
+	_temp = image;
+	if (callback) image.addEventListener('load', function(){ callback.call(image); }, { once: true });
+	if (onerror) image.addEventListener('error', function(){ delete shot_image_cache[name]; onerror.call(image); }, { once: true });
+	image.src = image.src || 'm/'+name+'.png';
+	return image;
 }
 
 function next_level(callback) {
@@ -123,7 +135,7 @@ function load_level(id, callback) {
 
 		camera_x = -entity_player.x;
 		camera_y = -300;
-		camera_z = -entity_player.z - 100;
+		camera_z = -entity_player.z - 88;
 
 		level_num_verts = num_verts;
 

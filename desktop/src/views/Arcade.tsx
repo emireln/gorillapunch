@@ -26,9 +26,11 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
   const [state, setState] = useState<FrameState>(blank);
   const [progress, setProgress] = useState<ShotProgress | null>(null);
   const [sector, setSector] = useState(1);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(readSavedMute);
+  const [volume, setVolume] = useState(readSavedVolume);
   const [syncing, setSyncing] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [frameLoaded, setFrameLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const send = useCallback((type: string, detail: Record<string, unknown> = {}) => {
@@ -39,11 +41,44 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
     const colors = Object.fromEntries(['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'glow', 'ambient'].map(name => [name, css.getPropertyValue(`--shot-${name}`).trim()]));
     send('configure', { level: sector, colors, locale });
   }, [locale, sector, send]);
+  const syncAudio = useCallback(() => send('audio', { muted, volume }), [muted, send, volume]);
   const write = useCallback((work: () => Promise<ShotProgress>) => {
     writes.current = writes.current.then(async () => { setProgress(await work()); }).catch(cause => setError(cause instanceof Error ? cause.message : t('arcade.saveError')));
   }, [t]);
 
   useEffect(() => { configure(); }, [configure]);
+  useEffect(() => {
+    syncAudio();
+    try {
+      localStorage.setItem('gp-shot-volume', String(volume));
+      localStorage.setItem('gp-shot-muted', String(muted));
+    } catch { /* Audio settings remain available for this session. */ }
+  }, [muted, syncAudio, volume]);
+  useEffect(() => {
+    const gameKeys = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'KeyP', 'Escape']);
+    const routeKey = (event: KeyboardEvent, pressed: boolean) => {
+      if (!live.current.runId || live.current.status === 'idle' || !gameKeys.has(event.code)) return;
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && focused.matches('input, textarea, select, [contenteditable="true"], .gp-dropdown-trigger')) return;
+      if (pressed && event.repeat && (event.code === 'KeyP' || event.code === 'Escape')) return;
+      if (pressed) event.preventDefault();
+      send('input', { code: event.code, pressed, repeat: event.repeat });
+    };
+    const keydown = (event: KeyboardEvent) => routeKey(event, true);
+    const keyup = (event: KeyboardEvent) => routeKey(event, false);
+    const pauseWhenAppLeaves = () => { if (live.current.status === 'running') send('pause'); };
+    const pauseWhenHidden = () => { if (document.hidden && live.current.status === 'running') send('pause'); };
+    window.addEventListener('keydown', keydown);
+    window.addEventListener('keyup', keyup);
+    window.addEventListener('blur', pauseWhenAppLeaves);
+    document.addEventListener('visibilitychange', pauseWhenHidden);
+    return () => {
+      window.removeEventListener('keydown', keydown);
+      window.removeEventListener('keyup', keyup);
+      window.removeEventListener('blur', pauseWhenAppLeaves);
+      document.removeEventListener('visibilitychange', pauseWhenHidden);
+    };
+  }, [send]);
   useEffect(() => {
     const changed = () => setFullscreen(document.fullscreenElement === shell.current);
     document.addEventListener('fullscreenchange', changed);
@@ -62,7 +97,8 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
     const receive = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow || event.data?.channel !== 'gorilla-shot-frame') return;
       const detail = event.data.detail as Partial<FrameState> & { level?: number; outcome?: 'failed' | 'cleared'; message?: string };
-      if (event.data.type === 'ready') { configure(); return; }
+      if (event.data.type === 'ready') { configure(); syncAudio(); return; }
+      if (event.data.type === 'loaded') { setFrameLoaded(true); return; }
       if (event.data.type === 'start-request') {
         if (starting.current || live.current.status !== 'idle') return;
         starting.current = true; ending.current = false; setError(null);
@@ -73,7 +109,7 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
         }).catch(e => { const message = e instanceof Error ? e.message : t('arcade.startError'); setError(message); send('error', { message }); }).finally(() => { starting.current = false; });
         return;
       }
-      if (event.data.type === 'error') { setError(String(detail.message || t('arcade.gameError'))); return; }
+      if (event.data.type === 'error') { setFrameLoaded(true); setError(String(detail.message || t('arcade.gameError'))); return; }
       if (!detail.runId || detail.runId !== live.current.runId || ending.current) return;
       const next = { ...live.current, ...detail } as FrameState;
       live.current = next; setState(next);
@@ -89,7 +125,7 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
     };
     window.addEventListener('message', receive);
     return () => window.removeEventListener('message', receive);
-  }, [configure, sector, send, write, t]);
+  }, [configure, sector, send, syncAudio, write, t]);
 
   useEffect(() => () => {
     const s = live.current;
@@ -120,9 +156,13 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
         <div className="shot-brand"><span className="shot-brand-icon"><GameController size={19} weight="fill"/></span><div><strong>{t('arcade.title')}</strong><span>{t('arcade.sectorSurvival')}</span></div></div>
         <div className="shot-toolbar-actions">
           <span className={`shot-sync-status ${progress?.sync === 'pending' ? 'pending' : ''}`}><i/>{syncLabel}</span>
-          <Tooltip content={t(muted ? 'arcade.unmute' : 'arcade.mute')}><button type="button" className="secondary-btn shot-tool-btn" aria-label={t(muted ? 'arcade.unmute' : 'arcade.mute')} onClick={() => { setMuted(!muted); send('mute', { muted: !muted }); }}>{muted ? <SpeakerSlash size={17}/> : <SpeakerHigh size={17}/>}</button></Tooltip>
+          <div className="shot-volume-control">
+            <Tooltip content={t(muted ? 'arcade.unmute' : 'arcade.mute')}><button type="button" className="secondary-btn shot-tool-btn" aria-label={t(muted ? 'arcade.unmute' : 'arcade.mute')} aria-pressed={muted} onClick={() => setMuted(value => !value)}>{muted || volume === 0 ? <SpeakerSlash size={17}/> : <SpeakerHigh size={17}/>}</button></Tooltip>
+            <Tooltip content={`${t('arcade.volume')}: ${Math.round(volume * 100)}%`}><input aria-label={t('arcade.volume')} aria-valuetext={`${Math.round(volume * 100)}%`} type="range" min="0" max="1" step="0.05" value={volume} onChange={event => { const next = Number(event.target.value); setVolume(next); if (next > 0 && muted) setMuted(false); }}/></Tooltip>
+            <span>{Math.round(volume * 100)}%</span>
+          </div>
           <Tooltip content={t(state.status === 'paused' ? 'arcade.resume' : 'arcade.pause')}><button type="button" className="secondary-btn shot-tool-btn" aria-label={t(state.status === 'paused' ? 'arcade.resume' : 'arcade.pause')} disabled={!inRun} onClick={() => send(state.status === 'paused' ? 'resume' : 'pause')}>{state.status === 'paused' ? <Play size={17} weight="fill"/> : <Pause size={17} weight="fill"/>}</button></Tooltip>
-          <button type="button" className="secondary-btn shot-fullscreen-btn" onClick={() => void toggleFullscreen()} aria-label={t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}>{fullscreen ? <CornersIn size={17}/> : <CornersOut size={17}/>}<span>{t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}</span></button>
+          <Tooltip content={t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}><button type="button" className="secondary-btn shot-fullscreen-btn" disabled={!frameLoaded} onClick={() => void toggleFullscreen()} aria-label={t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}>{fullscreen ? <CornersIn size={17}/> : <CornersOut size={17}/>}<span>{t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}</span></button></Tooltip>
         </div>
       </header>
       <div className="shot-hud" aria-label={t('arcade.statsLabel')}>
@@ -133,10 +173,13 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
         <div><span>{t('arcade.enemies')}</span><strong>{state.kills.toLocaleString(locale)}</strong></div>
         <div><span>{t('arcade.systems')}</span><strong>{state.systems.toLocaleString(locale)} <i>/ {state.systemsTotal.toLocaleString(locale)}</i></strong></div>
       </div>
-      <div className="shot-frame-wrap"><iframe ref={frame} title={t('arcade.arena')} src="./gorilla-shot/index.html" allow="autoplay; fullscreen" allowFullScreen onLoad={configure}/></div>
+      <div className="shot-frame-wrap">
+        <iframe ref={frame} title={t('arcade.arena')} src="./gorilla-shot/index.html" allow="autoplay; fullscreen" allowFullScreen tabIndex={0} onLoad={() => { configure(); syncAudio(); }}/>
+        {!frameLoaded && <div className="shot-frame-loading" role="status" aria-live="polite"><span className="shot-loading-mark">GP</span><span className="shot-loading-indicator"/><strong>{t('arcade.loading')}</strong><small>{t('arcade.loadingDescription')}</small></div>}
+      </div>
       <footer className="shot-footer">
-        <div className="shot-instructions"><span><kbd>WASD</kbd> {t('arcade.move')}</span><span><kbd>MOUSE</kbd> {t('arcade.aim')}</span><span><kbd>{locale === 'pt-BR' ? 'CLIQUE' : 'CLICK'}</kbd> {t('arcade.fire')}</span><span><kbd>P</kbd> {t('arcade.pause')}</span></div>
-        <div className="shot-sector-picker"><span>{t('arcade.deploy')}</span><Dropdown<number> ariaLabel={t('arcade.deploy')} value={sector} disabled={inRun} onChange={setSector} options={Array.from({ length: maxSector }, (_, index) => index + 1).map(n => ({ value: n, label: t('arcade.sectorOption', { level: n }) }))}/></div>
+        <div className="shot-instructions"><span><kbd>WASD</kbd> {t('arcade.move')}</span><span><kbd>MOUSE</kbd> {t('arcade.aim')}</span><span><kbd>{locale === 'pt-BR' ? 'CLIQUE' : 'CLICK'}</kbd> {t('arcade.fire')}</span><span><kbd>P / ESC</kbd> {t('arcade.pause')}</span></div>
+        <div className="shot-sector-picker"><span>{t('arcade.deploy')}</span><Dropdown<number> ariaLabel={t('arcade.deploy')} value={sector} disabled={!frameLoaded || inRun} onChange={setSector} options={Array.from({ length: maxSector }, (_, index) => index + 1).map(n => ({ value: n, label: t('arcade.sectorOption', { level: n }) }))}/></div>
       </footer>
     </section>
     {error && <div className="alert error shot-error" role="alert">{error}</div>}
@@ -151,4 +194,18 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
       <div className="shot-recent"><strong>{t('arcade.recentRuns')}</strong>{progress?.recentRuns.length ? <ol>{progress.recentRuns.slice(0, 5).map(run => <li key={run.id}><span className={run.status === 'cleared' ? 'cleared' : ''}>{t(run.status === 'cleared' ? 'arcade.cleared' : run.status === 'abandoned' ? 'arcade.abandoned' : 'arcade.failed')}</span><span>{t('arcade.runLabel', { level: run.levelReached })}</span><span>{timer(run.durationMs)}</span><strong>{run.score.toLocaleString(locale)} {t('arcade.points')}</strong></li>)}</ol> : <p>{t('arcade.firstRecord')}</p>}</div>
     </section>
   </div>;
+}
+
+function readSavedVolume() {
+  try {
+    const saved = localStorage.getItem('gp-shot-volume');
+    if (saved === null) return 0.65;
+    const value = Number(saved);
+    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0.65;
+  } catch { return 0.65; }
+}
+
+function readSavedMute() {
+  try { return localStorage.getItem('gp-shot-muted') === 'true'; }
+  catch { return false; }
 }

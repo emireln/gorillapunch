@@ -9,14 +9,16 @@ var shot_palette = {
 var shot_locale = 'en';
 var shot_strings = {
 	en: {
-		game: 'GORILLA SHOT', intro: 'Move with WASD or arrow keys. Aim with your mouse and hold click to fire.', deploy: 'Deploy to Sector {level}', note: 'Reboot every system to clear all three sectors.',
+		game: 'Gorilla Shot', intro: 'Restore the satellite systems, survive the arena, and clear each sector.', deploy: 'Deploy to Sector {level}', note: 'Your mission progress is saved on this device.',
+		move: 'MOVE', aim: 'AIM', fire: 'FIRE', pause: 'PAUSE', ready: 'READY', loading: 'Loading game systems…', loadingTitle: 'PREPARING THE ARENA', loadingStep: 'Loading textures and building the sector…', loadingError: 'The arena could not be loaded. Check your graphics support and try again.',
 		preparing: 'Preparing the arena…', noWebgl: 'WebGL is unavailable on this device.', tryAgain: 'Try again', secured: 'SECTORS SECURED', ended: 'RUN ENDED',
 		cleared: 'All systems are back online. Your run is saved.', failed: 'The mission is over. Your progress is saved.', deployAgain: 'Deploy again',
 		paused: 'PAUSED', pausedMessage: 'The clock is stopped. Take a breath.', resume: 'Resume mission', couldNotStart: 'Could not start the mission.',
 		reboot: 'REBOOTING...', success: 'SUCCESS', systemsOffline: 'SYSTEM(S) STILL OFFLINE', allOnline: 'ALL SYSTEMS ONLINE', triangulating: 'TRIANGULATING POSITION FOR NEXT HOP...', target: 'TARGET ACQUIRED', jumping: 'JUMPING...', scan: 'SCANNING FOR OFFLINE SYSTEMS...___'
 	},
 	'pt-BR': {
-		game: 'GORILLA SHOT', intro: 'Mova com WASD ou as setas. Mire com o mouse e mantenha o clique pressionado para atirar.', deploy: 'Avançar para o setor {level}', note: 'Reinicie todos os sistemas para concluir os três setores.',
+		game: 'Gorilla Shot', intro: 'Restaure os sistemas do satélite, sobreviva à arena e conclua cada setor.', deploy: 'Avançar para o setor {level}', note: 'O progresso da missão fica salvo neste dispositivo.',
+		move: 'MOVER', aim: 'MIRAR', fire: 'ATIRAR', pause: 'PAUSAR', ready: 'PRONTO', loading: 'Carregando os sistemas do jogo…', loadingTitle: 'PREPARANDO A ARENA', loadingStep: 'Carregando texturas e montando o setor…', loadingError: 'Não foi possível carregar a arena. Verifique o suporte gráfico e tente novamente.',
 		preparing: 'Preparando a arena…', noWebgl: 'WebGL não está disponível neste dispositivo.', tryAgain: 'Tentar novamente', secured: 'SETORES CONCLUÍDOS', ended: 'PARTIDA ENCERRADA',
 		cleared: 'Todos os sistemas estão online. Sua partida foi salva.', failed: 'A missão terminou. Seu progresso foi salvo.', deployAgain: 'Jogar novamente',
 		paused: 'PAUSADO', pausedMessage: 'O tempo parou. Respire um pouco.', resume: 'Retomar missão', couldNotStart: 'Não foi possível iniciar a missão.',
@@ -36,8 +38,12 @@ var shot = {
 	waiting: false,
 	ready: false,
 	loopStarted: false,
+	preloading: false,
+	previewLevel: 0,
+	previewRequest: 0,
 	audioStarted: false,
 	muted: false,
+	volume: 0.65,
 	selectedLevel: 1,
 	runId: '',
 	startedAt: '',
@@ -53,6 +59,16 @@ var shot_heading = document.getElementById('shot-heading');
 var shot_message = document.getElementById('shot-message');
 var shot_start = document.getElementById('shot-start');
 var shot_note = document.querySelector('.shot-overlay-note');
+var shot_loading = document.getElementById('shot-loading');
+var shot_loading_title = document.getElementById('shot-loading-title');
+var shot_loading_step = document.getElementById('shot-loading-step');
+var shot_loading_progress = document.getElementById('shot-loading-progress');
+var shot_controls = {
+	move: document.getElementById('shot-move-label'),
+	aim: document.getElementById('shot-aim-label'),
+	fire: document.getElementById('shot-fire-label'),
+	pause: document.getElementById('shot-pause-label')
+};
 
 function shot_apply_locale() {
 	document.documentElement.lang = shot_locale;
@@ -61,7 +77,10 @@ function shot_apply_locale() {
 		shot_message.textContent = shot_t('intro');
 		shot_start.textContent = shot_t('deploy', { level: shot.selectedLevel });
 		shot_note.textContent = shot_t('note');
+		Object.keys(shot_controls).forEach(function(key) { shot_controls[key].textContent = shot_t(key); });
 	}
+	shot_loading_title.textContent = shot_t('loadingTitle');
+	if (!shot.ready) shot_loading_step.textContent = shot_t('loadingStep');
 }
 
 function shot_send(type, detail) {
@@ -99,6 +118,7 @@ function shot_configure(detail) {
 	if (!detail || typeof detail !== 'object') return;
 	shot_locale = detail.locale === 'pt-BR' ? 'pt-BR' : 'en';
 	shot_apply_locale();
+	var previousLevel = shot.selectedLevel;
 	if (Number.isInteger(detail.level)) shot.selectedLevel = Math.max(1, Math.min(3, detail.level));
 	var colors = detail.colors || {};
 	var names = ['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'glow', 'ambient'];
@@ -113,26 +133,104 @@ function shot_configure(detail) {
 	shot_palette.purple = shot_color(colors.purple) || shot_palette.purple;
 	shot_palette.red = shot_color(colors.red) || shot_palette.red;
 	if (!shot.active && !shot.waiting) shot_start.textContent = shot_t('deploy', { level: shot.selectedLevel });
-	shot_start.disabled = false;
+	shot_start.disabled = (!shot.ready && !shot.loadingFailed) || shot.waiting;
+	if (shot.ready && !shot.active && !shot.waiting && previousLevel !== shot.selectedLevel) shot_prepare_preview(shot.selectedLevel);
+}
+
+function shot_set_loading(show, title, step, progress) {
+	shot_loading.hidden = !show;
+	if (title) shot_loading_title.textContent = title;
+	if (step) shot_loading_step.textContent = step;
+	if (typeof progress === 'number') shot_loading_progress.style.width = Math.max(0, Math.min(100, progress)) + '%';
 }
 
 function shot_show_overlay(heading, message, button) {
 	shot_heading.textContent = heading;
 	shot_message.textContent = message;
 	shot_start.textContent = button;
-	shot_start.disabled = false;
+	shot_start.disabled = (!shot.ready && !shot.loadingFailed) || shot.waiting;
+	shot_loading.hidden = true;
 	shot_overlay.hidden = false;
 }
 
 function shot_fail(message) {
 	shot.waiting = false;
+	if (!shot.ready) shot.loadingFailed = true;
 	shot_show_overlay(shot_t('game'), message, shot_t('tryAgain'));
 	shot_send('error', { message: message });
 }
 
+function shot_render_preview() {
+	if (!gl || !shot.ready || !entity_player) return;
+	renderer_prepare_frame();
+	for (var i = 0; i < entities.length; i++) {
+		if (!entities[i]._dead) entities[i]._render();
+	}
+	for (var health = 0; health < entity_player.h; health++) push_sprite(-camera_x - 50 + health * 4, 29 - camera_y, -camera_z - 30, 26);
+	renderer_end_frame();
+}
+
+function shot_prepare_preview(level) {
+	if (!shot.ready || shot.active || shot.waiting) return;
+	var request = ++shot.previewRequest;
+	level = Math.max(1, Math.min(3, Number(level) || 1));
+	current_level = level - 1;
+	load_level(level, function() {
+		if (request !== shot.previewRequest || shot.active || shot.waiting) return;
+		shot.previewLevel = level;
+		shot_render_preview();
+		shot_overlay.hidden = false;
+		shot_loading.hidden = true;
+	});
+}
+
+function shot_preload_assets() {
+	if (shot.preloading || shot.ready) return;
+	shot.preloading = true;
+	shot_set_loading(true, shot_t('loadingTitle'), shot_t('loadingStep'), 0);
+	if (!gl) {
+		shot.preloading = false;
+		shot_set_loading(false);
+		shot_fail(shot_t('noWebgl'));
+		shot_send('loaded');
+		return;
+	}
+	var assets = ['q2', 'l1', 'l2', 'l3'];
+	var index = 0;
+	function fail() {
+		shot.preloading = false;
+		shot_set_loading(false);
+		shot_fail(shot_t('loadingError'));
+		shot_send('loaded');
+	}
+	function loadNext() {
+		if (index >= assets.length) {
+			try {
+				renderer_init();
+				renderer_bind_image(shot_image_cache.q2);
+				shot.ready = true;
+				shot.loadingFailed = false;
+				shot.preloading = false;
+				shot_start.disabled = false;
+				shot_prepare_preview(shot.selectedLevel);
+				shot_send('loaded');
+			} catch (error) {
+				fail(error);
+			}
+			return;
+		}
+		var name = assets[index++];
+		load_image(name, function() {
+			shot_set_loading(true, shot_t('loadingTitle'), shot_t('loadingStep'), index / assets.length * 75);
+			loadNext();
+		}, fail);
+	}
+	loadNext();
+}
+
 function shot_begin(runId, level, startedAt) {
 	if (shot.active || typeof runId !== 'string' || !/^[0-9a-f-]{36}$/i.test(runId)) return;
-	if (!gl) { shot_fail(shot_t('noWebgl')); return; }
+	if (!gl || !shot.ready) { shot_fail(shot_t('noWebgl')); return; }
 	shot.waiting = false;
 	shot.startLevel = Math.max(1, Math.min(3, Number(level) || 1));
 	shot.runId = runId;
@@ -146,6 +244,8 @@ function shot_begin(runId, level, startedAt) {
 	shot.active = true;
 	shot.paused = false;
 	shot_overlay.hidden = true;
+	shot_set_loading(true, shot_t('loadingTitle'), shot_t('preparing'), 90);
+	shot.firstFrame = false;
 	current_level = shot.startLevel - 1;
 	var load = function() {
 		next_level(function() {
@@ -154,15 +254,7 @@ function shot_begin(runId, level, startedAt) {
 			if (!shot.loopStarted) { shot.loopStarted = true; requestAnimationFrame(game_tick); }
 		});
 	};
-	if (shot.ready) load();
-	else {
-		renderer_init();
-		load_image('q2', function() {
-			renderer_bind_image(this);
-			shot.ready = true;
-			load();
-		});
-	}
+	load();
 }
 
 function shot_finish(outcome) {
@@ -172,7 +264,7 @@ function shot_finish(outcome) {
 	shot.waiting = false;
 	terminal_cancel();
 	keys[key_up] = keys[key_down] = keys[key_left] = keys[key_right] = keys[key_shoot] = 0;
-	void audio_ctx.suspend();
+	if (audio_ctx) void audio_ctx.suspend();
 	shot_publish('end', { outcome: outcome });
 	shot_show_overlay(
 		outcome === 'cleared' ? shot_t('secured') : shot_t('ended'),
@@ -187,11 +279,11 @@ function shot_pause(paused) {
 	keys[key_up] = keys[key_down] = keys[key_left] = keys[key_right] = keys[key_shoot] = 0;
 	time_last = performance.now();
 	if (paused) {
-		void audio_ctx.suspend();
+		if (audio_ctx) void audio_ctx.suspend();
 		shot_show_overlay(shot_t('paused'), shot_t('pausedMessage'), shot_t('resume'));
 	} else {
 		shot_overlay.hidden = true;
-		if (!shot.muted) void audio_ctx.resume();
+		if (!shot.muted && shot.volume > 0 && audio_ctx) void audio_ctx.resume();
 	}
 	shot_publish('state');
 }
@@ -272,21 +364,27 @@ game_tick = function() {
 	camera_x += camera_shake * (_math.random() - 0.5);
 	camera_z += camera_shake * (_math.random() - 0.5);
 	renderer_end_frame();
+	if (!shot.firstFrame) {
+		shot.firstFrame = true;
+		shot_set_loading(false, null, null, 100);
+	}
 	entities = entities.filter(function(entity) { return entities_to_kill.indexOf(entity) === -1; });
 	entities_to_kill = [];
-	if (now - shot.lastPublished >= 250) {
+		if (now - shot.lastPublished >= 250) {
 		shot.lastPublished = now;
 		shot_publish('state');
-	}
+		}
 };
 
 shot_start.addEventListener('click', function() {
 	if (shot.paused) { shot_pause(false); return; }
 	if (shot.active || shot.waiting) return;
+	if (!shot.ready) { shot.loadingFailed = false; shot_preload_assets(); return; }
 	shot.waiting = true;
 	shot_start.disabled = true;
-	shot_message.textContent = shot_t('preparing');
-	void audio_ctx.resume();
+	shot_overlay.hidden = true;
+	shot_set_loading(true, shot_t('loadingTitle'), shot_t('preparing'), 85);
+	if (audio_ctx && shot.volume > 0 && !shot.muted) void audio_ctx.resume();
 	if (!shot.audioStarted) { shot.audioStarted = true; audio_init(function() {}); }
 	shot_send('start-request', { level: shot.selectedLevel });
 });
@@ -298,21 +396,34 @@ window.addEventListener('message', function(event) {
 	if (event.data.type === 'start') shot_begin(detail.runId, detail.level, detail.startedAt);
 	if (event.data.type === 'pause') shot_pause(true);
 	if (event.data.type === 'resume') shot_pause(false);
-	if (event.data.type === 'mute') {
+	if (event.data.type === 'audio') {
 		shot.muted = !!detail.muted;
-		if (shot.muted) void audio_ctx.suspend();
-		else if (shot.active && !shot.paused) void audio_ctx.resume();
+		if (Number.isFinite(detail.volume)) shot.volume = Math.max(0, Math.min(1, detail.volume));
+		audio_set_volume(shot.volume);
+		audio_set_muted(shot.muted);
+		if (shot.active && !shot.paused && !shot.muted && shot.volume > 0 && audio_ctx) void audio_ctx.resume();
+	}
+	if (event.data.type === 'input') {
+		var code = String(detail.code || '');
+		var inputKey = { KeyA: key_left, ArrowLeft: key_left, KeyW: key_up, ArrowUp: key_up, KeyD: key_right, ArrowRight: key_right, KeyS: key_down, ArrowDown: key_down }[code];
+		if (inputKey !== undefined) keys[inputKey] = detail.pressed ? 1 : 0;
+		if (detail.pressed && !detail.repeat && (code === 'KeyP' || code === 'Escape')) shot_pause(!shot.paused);
 	}
 	if (event.data.type === 'error') shot_fail(String(detail.message || shot_t('couldNotStart')));
+});
+
+window.addEventListener('blur', function() {
+	keys[key_up] = keys[key_down] = keys[key_left] = keys[key_right] = keys[key_shoot] = 0;
 });
 
 document.addEventListener('keydown', function(event) {
 	if (event.code === 'KeyP' || event.code === 'Escape') {
 		event.preventDefault();
+		if (event.repeat) return;
 		shot_pause(!shot.paused);
 	}
 });
-window.addEventListener('blur', function() { shot_pause(true); });
 document.addEventListener('visibilitychange', function() { if (document.hidden) shot_pause(true); });
 shot_start.disabled = true;
 shot_send('ready');
+shot_preload_assets();

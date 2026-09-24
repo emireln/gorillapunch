@@ -141,7 +141,7 @@ function renderer_prepare_frame() {
 }
 
 function renderer_end_frame() {
-	gl.uniform3f(camera_uniform, camera_x, camera_y - 10, camera_z-30);
+	gl.uniform3f(camera_uniform, camera_x, camera_y - 10, camera_z-26);
 	gl.uniform1fv(light_uniform, light_data);
 	gl.uniform3fv(ambient_uniform, shot_palette.ambient);
 	gl.uniform3fv(purple_uniform, shot_palette.purple);
