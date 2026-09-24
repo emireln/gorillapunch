@@ -56,18 +56,36 @@ export class CloudService {
   }
 
   async initialize() {
-    if (!this.client || !safeStorage.isEncryptionAvailable()) return;
+    return this.restoreSession();
+  }
+
+  async restoreSession(): Promise<CloudState> {
+    if (!this.client || !safeStorage.isEncryptionAvailable() || this.currentSession) return this.state();
     const encrypted = await this.database.getValue(SESSION_KEY);
-    if (!encrypted) return;
+    if (!encrypted) return this.state();
+    let saved: { access_token: string; refresh_token: string };
     try {
-      const parsed = JSON.parse(safeStorage.decryptString(Buffer.from(encrypted, 'base64'))) as { access_token: string; refresh_token: string };
-      const { data, error } = await this.client.auth.setSession(parsed);
-      if (error) throw error;
-      this.currentSession = data.session;
-      await this.loadAvatar();
+      const parsed = JSON.parse(safeStorage.decryptString(Buffer.from(encrypted, 'base64'))) as Partial<typeof saved>;
+      if (typeof parsed.access_token !== 'string' || typeof parsed.refresh_token !== 'string') throw new Error('Invalid saved session.');
+      saved = { access_token: parsed.access_token, refresh_token: parsed.refresh_token };
     } catch {
       await this.database.removeValue(SESSION_KEY);
+      return this.state();
     }
+    try {
+      const { data, error } = await this.client.auth.setSession(saved);
+      if (error) {
+        if (isExpiredRefreshSession(error)) await this.database.removeValue(SESSION_KEY);
+        return this.state();
+      }
+      if (!data.session) {
+        await this.database.removeValue(SESSION_KEY);
+        return this.state();
+      }
+      this.currentSession = data.session;
+      try { await this.loadAvatar(); } catch { this.avatarDataUrl = null; }
+    } catch { /* Keep the encrypted refresh token so a temporary network failure can be retried later. */ }
+    return this.state();
   }
 
   state(): CloudState {
@@ -295,6 +313,11 @@ function readShotMetadata(metadata: Record<string, unknown> | null | undefined):
     if (summaries.length >= 64) break;
   }
   return summaries;
+}
+
+function isExpiredRefreshSession(error: { message?: string; code?: string }) {
+  return error.code === 'refresh_token_not_found'
+    || /invalid_grant|invalid refresh token|refresh token (?:not found|expired|invalid)/i.test(error.message || '');
 }
 
 function authErrorMessage(error: { message: string; status?: number }, action: 'sign-in' | 'sign-up') {

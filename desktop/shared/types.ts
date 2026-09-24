@@ -161,6 +161,7 @@ export interface DesktopAPI {
     start(url: string, options: StartPunchOptions): Promise<DesktopScan>;
     cancel(scanId: string): Promise<void>;
     history(): Promise<DesktopScan[]>;
+    pending(): Promise<DesktopScan[]>;
     report(scanId: string): Promise<DesktopReport | null>;
     remove(scanId: string): Promise<void>;
     sync(scanId: string): Promise<DesktopScan>;
@@ -171,6 +172,7 @@ export interface DesktopAPI {
   };
   cloud: {
     state(): Promise<CloudState>;
+    restoreSession(): Promise<CloudState>;
     signIn(credentials: CloudCredentials): Promise<CloudState>;
     signUp(credentials: SignUpCredentials): Promise<{ state: CloudState; needsEmailConfirmation: boolean }>;
     signOut(): Promise<CloudState>;

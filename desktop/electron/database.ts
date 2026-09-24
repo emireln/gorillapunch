@@ -127,6 +127,21 @@ export class DesktopDatabase {
     return result.rows.map(row => JSON.parse(String(row.body)) as DesktopScan);
   }
 
+  async pendingCloudReports(): Promise<DesktopScan[]> {
+    await this.ready;
+    const result = await this.client.execute(`
+      SELECT body FROM desktop_scans
+      WHERE status='completed'
+        AND COALESCE(json_extract(body,'$.cloud_id'),'')=''
+        AND COALESCE(json_extract(body,'$.synced_at'),'')=''
+      ORDER BY created_at ASC
+    `);
+    return result.rows.flatMap(row => {
+      try { return [JSON.parse(String(row.body)) as DesktopScan]; }
+      catch { return []; }
+    });
+  }
+
   async saveReport(report: DesktopReport) {
     await this.ready;
     const serializable = { ...report, screenshots: report.screenshots.map(shot => ({ id: shot.id, scan_id: shot.scan_id, url: shot.url, viewport: shot.viewport, path: shot.path })) };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, WarningCircle, X } from '@phosphor-icons/react';
 import type { CloudState, DesktopReport, DesktopScan, DesktopSettings, LocalServer, WatchProject, WorkspaceMode } from '../shared/types';
 import { TitleBar } from './components/TitleBar';
@@ -22,6 +22,7 @@ export function App() {
   const [cloud, setCloud] = useState<CloudState | null>(null);
   const [localHistory, setLocalHistory] = useState<DesktopScan[]>([]);
   const [cloudHistory, setCloudHistory] = useState<DesktopScan[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [servers, setServers] = useState<LocalServer[]>([]);
   const [watchers, setWatchers] = useState<WatchProject[]>([]);
   const [report, setReport] = useState<DesktopReport | null>(null);
@@ -46,10 +47,55 @@ export function App() {
     } else setCloudHistory([]);
   }, []);
 
+  const syncInFlight = useRef(false);
+  const refreshPendingCount = useCallback(async () => {
+    const pending = await window.gorillaPunch.scans.pending();
+    setPendingCount(pending.length);
+    return pending;
+  }, []);
+  const syncPending = useCallback(async (quiet = false) => {
+    if (syncInFlight.current) return;
+    syncInFlight.current = true;
+    let synced = 0;
+    let firstError: unknown = null;
+    try {
+      const pending = await refreshPendingCount();
+      for (const item of pending) {
+        try {
+          const scan = await window.gorillaPunch.scans.sync(item.id);
+          setLocalHistory(current => upsert(current, scan));
+          setReport(current => current?.scan.id === scan.id ? { ...current, scan } : current);
+          synced++;
+        } catch (error) {
+          firstError ||= error;
+          const message = errorMessage(error).toLowerCase();
+          if (/migration|not enabled|network|fetch|connection|timeout|sign in|switch to cloud/.test(message)) break;
+        }
+      }
+      await refreshPendingCount();
+      if (synced) {
+        await refreshCloud();
+        if (!quiet) notify(t(synced === 1 ? 'app.pendingSyncedSingular' : 'app.pendingSynced', { count: synced }));
+      }
+      if (firstError && !quiet) notify(errorMessage(firstError), 'error');
+    } catch (error) {
+      firstError ||= error;
+      if (!quiet) notify(errorMessage(firstError), 'error');
+    } finally {
+      syncInFlight.current = false;
+    }
+  }, [notify, refreshCloud, refreshPendingCount, t]);
+
   useEffect(() => {
-    void Promise.all([window.gorillaPunch.settings.get(), window.gorillaPunch.cloud.state(), window.gorillaPunch.scans.history(), window.gorillaPunch.watchers.list()]).then(([preferences, cloudState, scans, watchList]) => {
-      setSettings(preferences); setCloud(cloudState); setLocalHistory(scans); setWatchers(watchList);
-      if (cloudState.authenticated) void refreshCloud(cloudState);
+    void Promise.all([window.gorillaPunch.settings.get(), window.gorillaPunch.cloud.state(), window.gorillaPunch.scans.history(), window.gorillaPunch.scans.pending(), window.gorillaPunch.watchers.list()]).then(([preferences, cloudState, scans, pending, watchList]) => {
+      setSettings(preferences); setCloud(cloudState); setLocalHistory(scans); setPendingCount(pending.length); setWatchers(watchList);
+      if (cloudState.authenticated) {
+        void refreshCloud(cloudState);
+        if (preferences.workspace === 'cloud' && preferences.autoSync) {
+          void syncPending(true);
+          void window.gorillaPunch.game.sync().catch(() => undefined);
+        }
+      }
       if (preferences.portScan) void window.gorillaPunch.servers.detect().then(setServers);
     }).catch(error => notify(errorMessage(error), 'error'));
     const progress = window.gorillaPunch.scans.onProgress(({ scan }) => setLocalHistory(current => upsert(current, scan)));
@@ -60,10 +106,21 @@ export function App() {
       if (completed.scan.sync_error) notify(completed.scan.sync_error, 'error');
     });
     const failed = window.gorillaPunch.scans.onError(scan => { setLocalHistory(current => upsert(current, scan)); if (scan.status !== 'cancelled') notify(scan.sync_error || t('app.punchFailed'), 'error'); });
-    const connection = () => { setOnline(navigator.onLine); if (navigator.onLine) void refreshCloud(); };
+    const connection = () => {
+      setOnline(navigator.onLine);
+      if (navigator.onLine) void (async () => {
+        const state = await window.gorillaPunch.cloud.restoreSession();
+        await refreshCloud(state);
+        const preferences = await window.gorillaPunch.settings.get();
+        if (state.authenticated && preferences.workspace === 'cloud' && preferences.autoSync) {
+          void syncPending(true);
+          void window.gorillaPunch.game.sync().catch(() => undefined);
+        }
+      })().catch(() => undefined);
+    };
     window.addEventListener('online', connection); window.addEventListener('offline', connection);
     return () => { progress(); complete(); failed(); window.removeEventListener('online', connection); window.removeEventListener('offline', connection); };
-  }, [notify, refreshCloud, t]);
+  }, [notify, refreshCloud, refreshPendingCount, syncPending, t]);
 
   useEffect(() => {
     if (!settings) return;
@@ -87,7 +144,9 @@ export function App() {
     if (!settings) return [];
     if (settings.workspace === 'local') return localHistory.filter(scan => scan.storage === 'local').map(scan => ({ scan, source: 'local' }));
     const remoteIds = new Set(cloudHistory.map(scan => scan.id));
-    const localCloud = localHistory.filter(scan => scan.storage === 'cloud' && (!scan.cloud_id || !remoteIds.has(scan.cloud_id))).map(scan => ({ scan, source: 'local' as const }));
+    const localCloud = localHistory.filter(scan => scan.storage === 'cloud'
+      ? (!scan.cloud_id || !remoteIds.has(scan.cloud_id))
+      : scan.status === 'completed' && !scan.cloud_id && !remoteIds.has(scan.id)).map(scan => ({ scan, source: 'local' as const }));
     return [...localCloud, ...cloudHistory.map(scan => ({ scan, source: 'cloud' as const }))].sort((a, b) => b.scan.created_at.localeCompare(a.scan.created_at));
   }, [settings, localHistory, cloudHistory]);
 
@@ -110,7 +169,14 @@ export function App() {
     try {
       const next = await window.gorillaPunch.settings.update(patch); setSettings(next);
       if (next.portScan) void window.gorillaPunch.servers.detect().then(setServers); else setServers([]);
-      if (next.workspace === 'cloud') void refreshCloud();
+      if (next.workspace === 'cloud') {
+        const active = await window.gorillaPunch.cloud.state();
+        void refreshCloud(active);
+        if (active.authenticated && next.autoSync) {
+          void syncPending(true);
+          void window.gorillaPunch.game.sync().catch(() => undefined);
+        }
+      }
     } catch (error) { notify(errorMessage(error), 'error'); }
   };
   const addWatcher = async (url: string, mode: 'quick' | 'full') => {
@@ -135,23 +201,9 @@ export function App() {
   };
   const syncReport = async () => {
     if (!report) return;
-    try { const scan = await window.gorillaPunch.scans.sync(report.scan.id); setLocalHistory(current => upsert(current, scan)); setReport(current => current ? { ...current, scan } : current); await refreshCloud(); notify(t('app.reportSynced')); }
+    try { const scan = await window.gorillaPunch.scans.sync(report.scan.id); setLocalHistory(current => upsert(current, scan)); setReport(current => current ? { ...current, scan } : current); await refreshPendingCount(); await refreshCloud(); notify(t('app.reportSynced')); }
     catch (error) { notify(errorMessage(error), 'error'); }
   };
-  const syncPending = async () => {
-    const pending = localHistory.filter(scan => scan.storage === 'cloud' && scan.status === 'completed' && !scan.synced_at);
-    let synced = 0;
-    for (const item of pending) {
-      try {
-        const scan = await window.gorillaPunch.scans.sync(item.id);
-        setLocalHistory(current => upsert(current, scan));
-        setReport(current => current?.scan.id === scan.id ? { ...current, scan } : current);
-        synced++;
-      } catch (error) { notify(errorMessage(error), 'error'); break; }
-    }
-    if (synced) { await refreshCloud(); notify(t(synced === 1 ? 'app.pendingSyncedSingular' : 'app.pendingSynced', { count: synced })); }
-  };
-
   if (!settings || !cloud) return <div className="boot-screen"><div className="boot-mark">GP</div><span>{t('app.loading')}</span></div>;
   return <div className={`desktop-app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
     <TitleBar workspace={settings.workspace} cloud={cloud} online={online} onPunch={url => void startPunch(url)} onProfile={() => setView('settings')}/>
@@ -160,8 +212,8 @@ export function App() {
       {view === 'history' && <History items={items} onOpen={item => void openReport(item)}/>}
       {view === 'watchers' && <Watchers watchers={watchers} onAdd={addWatcher} onUpdate={updateWatcher} onRemove={removeWatcher}/>}
       {view === 'arcade' && <Arcade workspace={settings.workspace} cloudConnected={cloud.authenticated} online={online}/>}
-      {view === 'settings' && <Settings settings={settings} cloud={cloud} pendingCount={localHistory.filter(scan => scan.storage === 'cloud' && scan.status === 'completed' && !scan.synced_at).length} onSyncPending={syncPending} onSettings={updateSettings} onAvatar={setCloud} onCloud={state => { setCloud(state); if (state.authenticated) { void updateSettings({ workspace: 'cloud', autoSync: true }); void refreshCloud(state); } else { setCloudHistory([]); void updateSettings({ workspace: 'local' }); } }} notify={notify}/>}
-      {view === 'report' && (loadingReport ? <div className="view loading-view">{t('app.loadingReport')}</div> : report ? <ReportView key={report.scan.id} report={report} source={reportSource} onBack={() => setView('history')} onDelete={deleteReport} onSync={syncReport} notify={notify}/> : <div className="view empty-panel">{t('app.reportUnavailable')}</div>)}
+      {view === 'settings' && <Settings settings={settings} cloud={cloud} pendingCount={pendingCount} onSyncPending={() => syncPending()} onSettings={updateSettings} onAvatar={setCloud} onCloud={state => { setCloud(state); if (state.authenticated) { void updateSettings({ workspace: 'cloud', autoSync: true }); void refreshCloud(state); } else { setCloudHistory([]); void updateSettings({ workspace: 'local' }); } }} notify={notify}/>}
+      {view === 'report' && (loadingReport ? <div className="view loading-view">{t('app.loadingReport')}</div> : report ? <ReportView key={report.scan.id} report={report} source={reportSource} canSync={settings.workspace === 'cloud' && cloud.authenticated} onBack={() => setView('history')} onDelete={deleteReport} onSync={syncReport} notify={notify}/> : <div className="view empty-panel">{t('app.reportUnavailable')}</div>)}
     </main></div>
     <div className="toast-stack">{toasts.map(toast => <div key={toast.id} className={`toast ${toast.tone}`}>{toast.tone === 'success' ? <CheckCircle size={20}/> : <WarningCircle size={20}/>}<span>{toast.message}</span><Tooltip content={t('app.dismiss')}><button aria-label={t('app.dismiss')} onClick={() => setToasts(current => current.filter(item => item.id !== toast.id))}><X size={16}/></button></Tooltip></div>)}</div>
   </div>;

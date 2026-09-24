@@ -48,12 +48,14 @@ export function registerIpc(services: Services) {
   handle<[string, { mode: 'quick' | 'full'; workspace: WorkspaceMode }]>('scans:start', (_event, url, options) => services.scans.start(String(url), { mode: options?.mode === 'full' ? 'full' : 'quick', workspace: options?.workspace === 'cloud' ? 'cloud' : 'local' }));
   handle<[string]>('scans:cancel', (_event, id) => services.scans.cancel(uuid(id)));
   handle('scans:history', () => services.database.history());
+  handle('scans:pending', () => services.database.pendingCloudReports());
   handle<[string]>('scans:report', (_event, id) => services.database.report(uuid(id)));
   handle<[string]>('scans:remove', async (_event, id) => services.database.deleteScan(uuid(id)));
   handle<[string]>('scans:sync', (_event, id) => services.scans.sync(uuid(id)));
   handle<[boolean]>('scans:pause', (_event, paused) => services.scans.setPaused(!!paused));
 
   handle('cloud:state', () => services.cloud.state());
+  handle('cloud:restore-session', () => services.cloud.restoreSession());
   handleAuth<[CloudCredentials], Awaited<ReturnType<CloudService['signIn']>>>('cloud:sign-in', (_event, input) => services.cloud.signIn(credentials(input)));
   handleAuth<[SignUpCredentials], Awaited<ReturnType<CloudService['signUp']>>>('cloud:sign-up', (_event, input) => services.cloud.signUp({ ...credentials(input, true), displayName: String(input?.displayName || '').trim().slice(0, 80) }));
   handle('cloud:sign-out', () => services.cloud.signOut());

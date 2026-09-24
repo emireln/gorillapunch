@@ -27,6 +27,7 @@ const api: DesktopAPI = {
     start: (url, options) => ipcRenderer.invoke('scans:start', url, options),
     cancel: scanId => ipcRenderer.invoke('scans:cancel', scanId),
     history: () => ipcRenderer.invoke('scans:history'),
+    pending: () => ipcRenderer.invoke('scans:pending'),
     report: scanId => ipcRenderer.invoke('scans:report', scanId),
     remove: scanId => ipcRenderer.invoke('scans:remove', scanId),
     sync: scanId => ipcRenderer.invoke('scans:sync', scanId),
@@ -37,6 +38,7 @@ const api: DesktopAPI = {
   },
   cloud: {
     state: () => ipcRenderer.invoke('cloud:state'),
+    restoreSession: () => ipcRenderer.invoke('cloud:restore-session'),
     signIn: credentials => invokeAuth('cloud:sign-in', credentials),
     signUp: credentials => invokeAuth('cloud:sign-up', credentials),
     signOut: () => ipcRenderer.invoke('cloud:sign-out'),
