@@ -231,6 +231,13 @@ main { min-width: 0; min-height: 0; overflow: auto; background: var(--bg-seconda
 .switch-row input:checked + i { background: var(--accent-vibrant); border-color: var(--border-accent-vibrant); }
 .switch-row input:checked + i::after { background: var(--content-on-vibrant); transform: translateX(15px); }
 .update-button { justify-self: start; margin-top: 13px; }
+.update-status-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; margin-top: 10px; padding: 13px; background: var(--bg-primary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); }
+.update-status-copy { display: grid; gap: 9px; min-width: 0; color: var(--content-primary); font-size: 12px; }
+.update-status-copy strong { color: var(--content-headings); font-weight: 600; }
+.update-progress { display: block; width: min(100%, 420px); height: 5px; overflow: hidden; appearance: none; border: 0; border-radius: var(--radius-pill); background: var(--bg-tertiary); }
+.update-progress::-webkit-progress-bar { background: var(--bg-tertiary); }
+.update-progress::-webkit-progress-value { background: var(--accent-vibrant); transition: width var(--motion-fast); }
+.update-action { justify-self: end; white-space: nowrap; }
 
 .report-view { width: min(1250px, 100%); margin: 0 auto; padding: 24px 32px 60px; }
 .report-toolbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; margin-bottom: 16px; }

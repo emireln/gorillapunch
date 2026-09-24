@@ -9,6 +9,7 @@ import { createMainWindow, reveal } from './window';
 import { createTray, notifyComplete } from './tray';
 import { registerIpc } from './ipc';
 import { ShotService } from './shot';
+import type { DesktopUpdateState } from '../shared/types';
 
 app.setAppUserModelId('run.gorillapunch.desktop');
 const lock = app.requestSingleInstanceLock();
@@ -19,6 +20,9 @@ let quitting = false;
 let database: DesktopDatabase | null = null;
 let watchers: WatcherService | null = null;
 let trayController: ReturnType<typeof createTray> | null = null;
+type AutoUpdater = typeof import('electron-updater').autoUpdater;
+let autoUpdater: AutoUpdater | null = null;
+let updateState: DesktopUpdateState = { status: 'idle' };
 
 app.on('second-instance', () => { if (mainWindow) reveal(mainWindow); });
 
@@ -38,24 +42,71 @@ async function boot() {
   diagnostic('local schema and cloud session initialized');
   const scanManager = new ScanManager(database, cloud, report => { if (mainWindow) void notifyComplete(mainWindow, database!, report); });
   const requestQuit = () => { quitting = true; app.quit(); };
+  const publishUpdateState = (state: DesktopUpdateState) => {
+    updateState = state;
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('system:update-state', state);
+  };
+  const getUpdater = () => {
+    if (!app.isPackaged) throw new Error('Update installation is available in packaged builds.');
+    if (!autoUpdater) {
+      autoUpdater = (createRequire(import.meta.url)('electron-updater') as typeof import('electron-updater')).autoUpdater;
+      autoUpdater.autoDownload = false;
+      autoUpdater.on('download-progress', progress => {
+        const version = 'version' in updateState ? updateState.version : undefined;
+        if (version) publishUpdateState({ status: 'downloading', version, percent: Math.max(0, Math.min(100, Math.round(progress.percent))) });
+      });
+      autoUpdater.on('update-downloaded', event => publishUpdateState({ status: 'downloaded', version: event.version }));
+      autoUpdater.on('error', error => {
+        diagnostic(`update service failed: ${error.message}`);
+        const version = 'version' in updateState ? updateState.version : undefined;
+        publishUpdateState({ status: 'error', ...(version ? { version } : {}) });
+      });
+    }
+    return autoUpdater;
+  };
   const checkForUpdates = async () => {
     if (!app.isPackaged) return 'Update checks are available in packaged builds.';
     try {
-      const updater = createRequire(import.meta.url)('electron-updater') as typeof import('electron-updater');
-      updater.autoUpdater.autoDownload = false;
-      const result = await updater.autoUpdater.checkForUpdates();
-      if (!result) return 'The update service is unavailable right now.';
-      return result.isUpdateAvailable ? `Version ${result.updateInfo.version} is available.` : 'GorillaPunch is up to date.';
+      const result = await getUpdater().checkForUpdates();
+      if (!result) {
+        publishUpdateState({ status: 'error' });
+        return 'The update service is unavailable right now.';
+      }
+      if (!result.isUpdateAvailable) {
+        publishUpdateState({ status: 'current' });
+        return 'GorillaPunch is up to date.';
+      }
+      const version = result.updateInfo.version;
+      if (updateState.status !== 'downloaded' || updateState.version !== version) publishUpdateState({ status: 'available', version });
+      return `Version ${version} is available.`;
     } catch (error) {
       diagnostic(`update check failed: ${error instanceof Error ? error.message : String(error)}`);
+      publishUpdateState({ status: 'error' });
       return 'The update service is unavailable right now.';
     }
+  };
+  const downloadUpdate = async () => {
+    const version = updateState.status === 'available' || updateState.status === 'error' ? updateState.version : undefined;
+    if (!version) throw new Error('No downloadable update is available. Check for updates first.');
+    try {
+      publishUpdateState({ status: 'downloading', version, percent: 0 });
+      await getUpdater().downloadUpdate();
+      if (updateState.status !== 'downloaded') publishUpdateState({ status: 'downloaded', version });
+    } catch (error) {
+      diagnostic(`update download failed: ${error instanceof Error ? error.message : String(error)}`);
+      publishUpdateState({ status: 'error', version });
+      throw new Error('The update could not be downloaded. Try again.');
+    }
+  };
+  const installUpdate = async () => {
+    if (updateState.status !== 'downloaded') throw new Error('The update has not finished downloading.');
+    getUpdater().quitAndInstall();
   };
   watchers = new WatcherService(database, scanManager);
   await watchers.initialize();
   mainWindow = await createMainWindow(database, requestQuit, () => quitting, window => {
     mainWindow = window;
-    registerIpc({ window, database: database!, cloud, shot, scans: scanManager, watchers: watchers!, requestClose: () => window.close(), checkForUpdates });
+    registerIpc({ window, database: database!, cloud, shot, scans: scanManager, watchers: watchers!, requestClose: () => window.close(), checkForUpdates, getUpdateState: () => updateState, downloadUpdate, installUpdate });
   });
   diagnostic('main window loaded');
   trayController = createTray(mainWindow, database, scanManager, requestQuit, checkForUpdates);

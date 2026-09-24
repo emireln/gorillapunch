@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopAPI, IpcActionResult } from '../shared/types';
+import type { DesktopAPI, DesktopUpdateState, IpcActionResult } from '../shared/types';
 
 const invokeAuth = async <T>(channel: string, value: unknown): Promise<T> => {
   const result = await ipcRenderer.invoke(channel, value) as IpcActionResult<T>;
@@ -61,6 +61,10 @@ const api: DesktopAPI = {
   system: {
     openExternal: url => ipcRenderer.invoke('system:open-external', url),
     checkForUpdates: () => ipcRenderer.invoke('system:check-updates'),
+    getUpdateState: () => ipcRenderer.invoke('system:get-update-state'),
+    downloadUpdate: () => ipcRenderer.invoke('system:download-update'),
+    installUpdate: () => ipcRenderer.invoke('system:install-update'),
+    onUpdateState: callback => listen<DesktopUpdateState>('system:update-state', callback),
   },
   game: {
     progress: () => ipcRenderer.invoke('game:progress'),

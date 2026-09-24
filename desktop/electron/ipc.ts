@@ -1,5 +1,5 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
-import type { CloudCredentials, DesktopSettings, IpcActionResult, SignUpCredentials, WatchProject, WorkspaceMode, ExportFormat, ShotRunSnapshot } from '../shared/types';
+import type { CloudCredentials, DesktopSettings, DesktopUpdateState, IpcActionResult, SignUpCredentials, WatchProject, WorkspaceMode, ExportFormat, ShotRunSnapshot } from '../shared/types';
 import type { DesktopDatabase } from './database';
 import { sanitizeSettings } from './database';
 import type { CloudService } from './cloud';
@@ -20,6 +20,9 @@ interface Services {
   watchers: WatcherService;
   requestClose(): void;
   checkForUpdates(): Promise<string>;
+  getUpdateState(): DesktopUpdateState;
+  downloadUpdate(): Promise<void>;
+  installUpdate(): Promise<void>;
 }
 
 export function registerIpc(services: Services) {
@@ -101,6 +104,9 @@ export function registerIpc(services: Services) {
     await shell.openExternal(url.href);
   });
   handle('system:check-updates', () => services.checkForUpdates());
+  handle('system:get-update-state', () => services.getUpdateState());
+  handle('system:download-update', () => services.downloadUpdate());
+  handle('system:install-update', () => services.installUpdate());
   handle('game:progress', () => services.shot.progress());
   handle<[number]>('game:start', (_event, level) => services.shot.start(level));
   handle<[string, ShotRunSnapshot]>('game:checkpoint', (_event, id, snapshot) => services.shot.checkpoint(uuid(id), snapshot));

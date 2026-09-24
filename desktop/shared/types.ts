@@ -4,6 +4,12 @@ export type WorkspaceMode = 'local' | 'cloud';
 export type DesktopTheme = 'system' | 'dark' | 'light';
 export type DesktopLocalePreference = 'auto' | 'en' | 'pt-BR';
 
+export type DesktopUpdateState =
+  | { status: 'idle' | 'current' }
+  | { status: 'available' | 'downloaded'; version: string }
+  | { status: 'downloading'; version: string; percent: number }
+  | { status: 'error'; version?: string };
+
 export interface DesktopScan extends Scan {
   storage: WorkspaceMode;
   cloud_id: string | null;
@@ -192,6 +198,10 @@ export interface DesktopAPI {
   system: {
     openExternal(url: string): Promise<void>;
     checkForUpdates(): Promise<string>;
+    getUpdateState(): Promise<DesktopUpdateState>;
+    downloadUpdate(): Promise<void>;
+    installUpdate(): Promise<void>;
+    onUpdateState(callback: (state: DesktopUpdateState) => void): () => void;
   };
   game: {
     progress(): Promise<ShotProgress>;
