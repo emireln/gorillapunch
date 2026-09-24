@@ -63,6 +63,53 @@ export interface CloudState {
   avatarDataUrl: string | null;
 }
 
+export type ShotRunStatus = 'active' | 'failed' | 'cleared' | 'abandoned';
+
+export interface ShotRun {
+  id: string;
+  accountId: string | null;
+  startedAt: string;
+  updatedAt: string;
+  finishedAt: string | null;
+  status: ShotRunStatus;
+  startingLevel: number;
+  levelReached: number;
+  durationMs: number;
+  score: number;
+  kills: number;
+  systems: number;
+}
+
+export type ShotRunSnapshot = Pick<ShotRun, 'levelReached' | 'durationMs' | 'score' | 'kills' | 'systems'>;
+export type ShotRunRecord = Omit<ShotRun, 'accountId'>;
+
+export interface ShotStats {
+  runs: number;
+  clears: number;
+  highestLevel: number;
+  bestScore: number;
+  bestTimeMs: number;
+  totalTimeMs: number;
+  totalKills: number;
+  totalSystems: number;
+}
+
+export interface ShotDeviceSummary {
+  version: 1;
+  deviceId: string;
+  updatedAt: string;
+  stats: ShotStats;
+  recentRuns: ShotRunRecord[];
+}
+
+export interface ShotProgress {
+  stats: ShotStats;
+  recentRuns: ShotRunRecord[];
+  sync: 'device' | 'synced' | 'pending';
+  lastSyncedAt: string | null;
+  syncError: string | null;
+}
+
 export interface WatchProject {
   id: string;
   folder: string;
@@ -145,8 +192,11 @@ export interface DesktopAPI {
     checkForUpdates(): Promise<string>;
   };
   game: {
-    getHighScore(): Promise<number>;
-    saveScore(score: number): Promise<{ localBest: number; lastScore: number }>;
+    progress(): Promise<ShotProgress>;
+    start(level: number): Promise<ShotRun>;
+    checkpoint(runId: string, snapshot: ShotRunSnapshot): Promise<ShotProgress>;
+    finish(runId: string, outcome: 'failed' | 'cleared' | 'abandoned', snapshot: ShotRunSnapshot): Promise<ShotProgress>;
+    sync(): Promise<ShotProgress>;
   };
 }
 

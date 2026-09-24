@@ -1,10 +1,11 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
-import type { CloudCredentials, DesktopSettings, IpcActionResult, SignUpCredentials, WatchProject, WorkspaceMode, ExportFormat } from '../shared/types';
+import type { CloudCredentials, DesktopSettings, IpcActionResult, SignUpCredentials, WatchProject, WorkspaceMode, ExportFormat, ShotRunSnapshot } from '../shared/types';
 import type { DesktopDatabase } from './database';
 import { sanitizeSettings } from './database';
 import type { CloudService } from './cloud';
 import type { ScanManager } from './scanner';
 import type { WatcherService } from './watchers';
+import type { ShotService } from './shot';
 import { detectLocalServers } from './servers';
 import { exportReport } from './exports';
 import { openInspector } from './inspector';
@@ -14,6 +15,7 @@ interface Services {
   window: BrowserWindow;
   database: DesktopDatabase;
   cloud: CloudService;
+  shot: ShotService;
   scans: ScanManager;
   watchers: WatcherService;
   requestClose(): void;
@@ -98,8 +100,11 @@ export function registerIpc(services: Services) {
     await shell.openExternal(url.href);
   });
   handle('system:check-updates', () => services.checkForUpdates());
-  handle('game:get-high-score', () => services.database.getGameHighScore());
-  handle<[number]>('game:save-score', (_event, score) => services.database.saveGameScore(Number(score) || 0));
+  handle('game:progress', () => services.shot.progress());
+  handle<[number]>('game:start', (_event, level) => services.shot.start(level));
+  handle<[string, ShotRunSnapshot]>('game:checkpoint', (_event, id, snapshot) => services.shot.checkpoint(uuid(id), snapshot));
+  handle<[string, 'failed' | 'cleared' | 'abandoned', ShotRunSnapshot]>('game:finish', (_event, id, outcome, snapshot) => services.shot.finish(uuid(id), outcome, snapshot));
+  handle('game:sync', () => services.shot.sync());
 
   const send = (channel: string, value: unknown) => { if (!services.window.isDestroyed()) services.window.webContents.send(channel, value); };
   services.scans.on('progress', value => send('scans:progress', value));

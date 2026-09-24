@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+    <title>Gorilla Shot</title>
+    <link rel="stylesheet" href="shot.css" />
+  </head>
+  <body>
+    <canvas id="c" width="320" height="180" aria-label="Gorilla Shot arena"></canvas>
+    <code id="a" aria-live="off"></code>
+    <div id="shot-overlay" class="shot-overlay">
+      <div class="shot-overlay-panel">
+        <span class="shot-overline">GORILLAPUNCH / ARCADE</span>
+        <h1 id="shot-heading">GORILLA SHOT</h1>
+        <p id="shot-message">Move with WASD or arrow keys. Aim with your mouse and hold click to fire.</p>
+        <button id="shot-start" type="button">Deploy to Sector 1</button>
+        <span class="shot-overlay-note">Reboot every system to clear all three sectors.</span>
+      </div>
+    </div>
+    <script src="dom.js"></script>
+    <script src="source/game.js"></script>
+    <script src="source/random.js"></script>
+    <script src="source/renderer.js"></script>
+    <script src="source/entity.js"></script>
+    <script src="source/entity-cpu.js"></script>
+    <script src="source/entity-player.js"></script>
+    <script src="source/entity-plasma.js"></script>
+    <script src="source/entity-spider.js"></script>
+    <script src="source/entity-sentry.js"></script>
+    <script src="source/entity-particle.js"></script>
+    <script src="source/entity-health.js"></script>
+    <script src="source/entity-explosion.js"></script>
+    <script src="source/sonantx-reduced.js"></script>
+    <script src="source/music-dark-meat-beat.js"></script>
+    <script src="source/sound-effects.js"></script>
+    <script src="source/audio.js"></script>
+    <script src="source/terminal.js"></script>
+    <script src="shot.js"></script>
+  </body>
+</html>

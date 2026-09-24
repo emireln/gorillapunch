@@ -30,27 +30,7 @@ describe('desktop local workspace', () => {
     expect(next).toMatchObject({ workspace: 'local', autoSync: false, maxPages: 30, concurrency: 3 });
   });
 
-  it('records pixel game scores and updates high score in SQLite storage', async () => {
-    const userData = await mkdtemp(join(tmpdir(), 'gorillapunch-game-'));
-    temporary.push(userData);
-    const database = new DesktopDatabase(userData);
 
-    expect(await database.getGameHighScore()).toBe(0);
-
-    const firstResult = await database.saveGameScore(42);
-    expect(firstResult).toEqual({ localBest: 42, lastScore: 42 });
-    expect(await database.getGameHighScore()).toBe(42);
-
-    const secondResult = await database.saveGameScore(15);
-    expect(secondResult).toEqual({ localBest: 42, lastScore: 15 });
-    expect(await database.getGameHighScore()).toBe(42);
-
-    const thirdResult = await database.saveGameScore(128);
-    expect(thirdResult).toEqual({ localBest: 128, lastScore: 128 });
-    expect(await database.getGameHighScore()).toBe(128);
-
-    await database.close();
-  });
 });
 
 describe('desktop user feedback', () => {

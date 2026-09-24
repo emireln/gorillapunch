@@ -8,6 +8,7 @@ import { WatcherService } from './watchers';
 import { createMainWindow, reveal } from './window';
 import { createTray, notifyComplete } from './tray';
 import { registerIpc } from './ipc';
+import { ShotService } from './shot';
 
 app.setAppUserModelId('run.gorillapunch.desktop');
 const lock = app.requestSingleInstanceLock();
@@ -33,6 +34,7 @@ async function boot() {
   diagnostic('SQLite client created');
   const cloud = new CloudService(database);
   await cloud.initialize();
+  const shot = new ShotService(database, cloud);
   diagnostic('local schema and cloud session initialized');
   const scanManager = new ScanManager(database, cloud, report => { if (mainWindow) void notifyComplete(mainWindow, database!, report); });
   const requestQuit = () => { quitting = true; app.quit(); };
@@ -53,7 +55,7 @@ async function boot() {
   await watchers.initialize();
   mainWindow = await createMainWindow(database, requestQuit, () => quitting, window => {
     mainWindow = window;
-    registerIpc({ window, database: database!, cloud, scans: scanManager, watchers: watchers!, requestClose: () => window.close(), checkForUpdates });
+    registerIpc({ window, database: database!, cloud, shot, scans: scanManager, watchers: watchers!, requestClose: () => window.close(), checkForUpdates });
   });
   diagnostic('main window loaded');
   trayController = createTray(mainWindow, database, scanManager, requestQuit, checkForUpdates);

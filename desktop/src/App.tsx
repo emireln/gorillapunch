@@ -155,7 +155,7 @@ export function App() {
       {view === 'dashboard' && <Dashboard items={items} localHistory={localHistory} workspace={settings.workspace} autoSync={settings.autoSync} cloudConnected={cloud.authenticated} defaultMode={settings.defaultMode} servers={servers} onPunch={startPunch} onOpen={item => void openReport(item)} onHistory={() => setView('history')}/>}
       {view === 'history' && <History items={items} onOpen={item => void openReport(item)}/>}
       {view === 'watchers' && <Watchers watchers={watchers} onAdd={addWatcher} onUpdate={updateWatcher} onRemove={removeWatcher}/>}
-      {view === 'arcade' && <Arcade/>}
+      {view === 'arcade' && <Arcade workspace={settings.workspace} cloudConnected={cloud.authenticated} online={online}/>}
       {view === 'settings' && <Settings settings={settings} cloud={cloud} pendingCount={localHistory.filter(scan => scan.storage === 'cloud' && scan.status === 'completed' && !scan.synced_at).length} onSyncPending={syncPending} onSettings={updateSettings} onAvatar={setCloud} onCloud={state => { setCloud(state); if (state.authenticated) { void updateSettings({ workspace: 'cloud', autoSync: true }); void refreshCloud(state); } else { setCloudHistory([]); void updateSettings({ workspace: 'local' }); } }} notify={notify}/>}
       {view === 'report' && (loadingReport ? <div className="view loading-view">Loading report evidence…</div> : report ? <ReportView key={report.scan.id} report={report} source={reportSource} onBack={() => setView('history')} onDelete={deleteReport} onSync={syncReport} notify={notify}/> : <div className="view empty-panel">Report unavailable.</div>)}
     </main></div>

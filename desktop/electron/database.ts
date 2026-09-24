@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { DesktopReport, DesktopScan, DesktopScreenshot, DesktopSettings, WatchProject } from '../shared/types';
+import type { DesktopReport, DesktopScan, DesktopScreenshot, DesktopSettings, ShotRun, WatchProject } from '../shared/types';
 
 const defaults: DesktopSettings = {
   workspace: 'local',
@@ -68,14 +68,16 @@ export class DesktopDatabase {
         id TEXT PRIMARY KEY,
         body TEXT NOT NULL CHECK(json_valid(body))
       );
-      CREATE TABLE IF NOT EXISTS desktop_game_scores (
+      CREATE TABLE IF NOT EXISTS desktop_shot_runs (
         id TEXT PRIMARY KEY,
-        score INTEGER NOT NULL,
-        created_at TEXT NOT NULL
+        body TEXT NOT NULL CHECK(json_valid(body)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS desktop_game_scores_date ON desktop_game_scores(created_at DESC);
+      CREATE INDEX IF NOT EXISTS desktop_shot_runs_date ON desktop_shot_runs(created_at DESC);
     `);
     await this.recoverInterruptedScans();
+    await this.recoverInterruptedShotRuns();
   }
 
   private async recoverInterruptedScans() {
@@ -87,6 +89,19 @@ export class DesktopDatabase {
         sql: 'UPDATE desktop_scans SET body=?,status=? WHERE id=?',
         args: [JSON.stringify(recovered), recovered.status, recovered.id],
       });
+    }
+  }
+
+  private async recoverInterruptedShotRuns() {
+    const rows = await this.client.execute('SELECT id,body FROM desktop_shot_runs');
+    for (const row of rows.rows) {
+      let run: ShotRun;
+      try { run = JSON.parse(String(row.body)) as ShotRun; }
+      catch { continue; }
+      if (run.status !== 'active') continue;
+      const now = new Date().toISOString();
+      const recovered: ShotRun = { ...run, status: 'abandoned', finishedAt: now, updatedAt: now };
+      await this.client.execute({ sql: 'UPDATE desktop_shot_runs SET body=?,updated_at=? WHERE id=?', args: [JSON.stringify(recovered), now, String(row.id)] });
     }
   }
 
@@ -205,31 +220,48 @@ export class DesktopDatabase {
     await this.client.execute({ sql: 'DELETE FROM desktop_watchers WHERE id=?', args: [id] });
   }
 
-  async saveGameScore(score: number): Promise<{ localBest: number; lastScore: number }> {
+  async shotDeviceId(): Promise<string> {
     await this.ready;
-    const cleanScore = Math.max(0, Math.floor(score));
+    const saved = await this.getValue('gorilla_shot_device_id');
+    if (saved && /^[0-9a-f-]{36}$/i.test(saved)) return saved;
     const id = randomUUID();
-    const now = new Date().toISOString();
-    await this.client.execute({
-      sql: 'INSERT INTO desktop_game_scores(id, score, created_at) VALUES(?, ?, ?)',
-      args: [id, cleanScore, now],
-    });
-    const currentBestRaw = await this.getValue('game_high_score');
-    const currentBest = currentBestRaw ? parseInt(currentBestRaw, 10) || 0 : 0;
-    const nextBest = Math.max(currentBest, cleanScore);
-    await this.setValue('game_high_score', String(nextBest));
-    return { localBest: nextBest, lastScore: cleanScore };
+    await this.setValue('gorilla_shot_device_id', id);
+    return id;
   }
 
-  async getGameHighScore(): Promise<number> {
+  async shotRuns(): Promise<ShotRun[]> {
     await this.ready;
-    const currentBestRaw = await this.getValue('game_high_score');
-    if (currentBestRaw) return parseInt(currentBestRaw, 10) || 0;
-    const result = await this.client.execute('SELECT MAX(score) as best FROM desktop_game_scores');
-    if (result.rows.length && result.rows[0].best !== null) {
-      return Number(result.rows[0].best) || 0;
+    const result = await this.client.execute('SELECT body FROM desktop_shot_runs ORDER BY created_at DESC');
+    return result.rows.flatMap(row => {
+      try { return [JSON.parse(String(row.body)) as ShotRun]; }
+      catch { return []; }
+    });
+  }
+
+  async shotRun(id: string): Promise<ShotRun | null> {
+    await this.ready;
+    const result = await this.client.execute({ sql: 'SELECT body FROM desktop_shot_runs WHERE id=?', args: [id] });
+    if (!result.rows.length) return null;
+    try { return JSON.parse(String(result.rows[0].body)) as ShotRun; }
+    catch { return null; }
+  }
+
+  async saveShotRun(run: ShotRun): Promise<ShotRun> {
+    await this.ready;
+    await this.client.execute({
+      sql: 'INSERT INTO desktop_shot_runs(id,body,created_at,updated_at) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,updated_at=excluded.updated_at',
+      args: [run.id, JSON.stringify(run), run.startedAt, run.updatedAt],
+    });
+    return run;
+  }
+
+  async claimAnonymousShotRuns(accountId: string) {
+    await this.ready;
+    const runs = await this.shotRuns();
+    for (const run of runs) {
+      if (run.accountId !== null) continue;
+      await this.saveShotRun({ ...run, accountId, updatedAt: new Date().toISOString() });
     }
-    return 0;
   }
 
   async close() { await this.client.close(); }

@@ -1,9 +1,11 @@
 import { safeStorage } from 'electron';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
-import type { DesktopReport, DesktopScan, CloudCredentials, CloudState, SignUpCredentials } from '../shared/types';
+import type { DesktopReport, DesktopScan, CloudCredentials, CloudState, ShotDeviceSummary, SignUpCredentials } from '../shared/types';
 import type { DesktopDatabase } from './database';
+import { readShotSummary } from '../shared/shot-progress';
 
 const SESSION_KEY = 'cloud_session_v1';
+const SHOT_METADATA_PREFIX = 'gorilla_shot_v1_';
 const DEFAULT_SUPABASE_URL = 'https://siuktrgrqxjrecvoqdek.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpdWt0cmdycXhqcmVjdm9xZGVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MjgyNzUsImV4cCI6MjEwNTAwNDI3NX0.x3_ySfCdDAezadpABVFzoVSfktFSqCfE92qJdDtNE9I';
 const DEFAULT_API_URL = 'https://www.gorillapunch.run';
@@ -190,6 +192,21 @@ export class CloudService {
     return this.state();
   }
 
+  async shotSummaries(): Promise<ShotDeviceSummary[]> {
+    const client = await this.authenticatedClient();
+    const { data, error } = await client.auth.getUser();
+    if (error || !data.user) throw new Error('Game progress could not be loaded from your account.');
+    return readShotMetadata(data.user.user_metadata);
+  }
+
+  async saveShotSummary(summary: ShotDeviceSummary): Promise<ShotDeviceSummary[]> {
+    const client = await this.authenticatedClient();
+    const key = `${SHOT_METADATA_PREFIX}${summary.deviceId.replaceAll('-', '')}`;
+    const { data, error } = await client.auth.updateUser({ data: { [key]: summary } });
+    if (error || !data.user) throw new Error(`Game progress sync failed: ${safeCloudError(error?.message || 'Account unavailable')}`);
+    return readShotMetadata(data.user.user_metadata);
+  }
+
   private async loadAvatar() {
     this.avatarDataUrl = null;
     const userId = this.currentSession?.user.id;
@@ -217,6 +234,18 @@ export class CloudService {
     const value = JSON.stringify({ access_token: session.access_token, refresh_token: session.refresh_token });
     await this.database.setValue(SESSION_KEY, safeStorage.encryptString(value).toString('base64'));
   }
+}
+
+function readShotMetadata(metadata: Record<string, unknown> | null | undefined): ShotDeviceSummary[] {
+  if (!metadata || typeof metadata !== 'object') return [];
+  const summaries: ShotDeviceSummary[] = [];
+  for (const [key, value] of Object.entries(metadata)) {
+    if (!key.startsWith(SHOT_METADATA_PREFIX)) continue;
+    const summary = readShotSummary(value);
+    if (summary && key === `${SHOT_METADATA_PREFIX}${summary.deviceId.replaceAll('-', '')}`) summaries.push(summary);
+    if (summaries.length >= 64) break;
+  }
+  return summaries;
 }
 
 function authErrorMessage(error: { message: string; status?: number }, action: 'sign-in' | 'sign-up') {

@@ -8,10 +8,18 @@ html[data-theme='dark'] {
   --bg-secondary: #24202B;
   --bg-tertiary: #1B1821;
   --bg-overlay: #393442;
-  --arcade-bg: #24202b;
-  --arcade-ink: #957cdf;
-  --arcade-text: #f6f2ff;
   --terminal-text: #f1f0f5;
+  --shot-bg: #100D1B;
+  --shot-surface: #211B31;
+  --shot-overlay: #171122EE;
+  --shot-purple: #7553FF;
+  --shot-purple-light: #ABA8F8;
+  --shot-red: #FF002B;
+  --shot-text: #F6F2FF;
+  --shot-muted: #B5B0BD;
+  --shot-glow: #7553FF55;
+  --shot-ambient: #33234F;
+
 
   --content-headings: #FFFFFF;
   --content-primary: #E7E5EA;

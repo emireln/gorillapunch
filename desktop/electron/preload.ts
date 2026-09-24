@@ -63,8 +63,11 @@ const api: DesktopAPI = {
     checkForUpdates: () => ipcRenderer.invoke('system:check-updates'),
   },
   game: {
-    getHighScore: () => ipcRenderer.invoke('game:get-high-score'),
-    saveScore: score => ipcRenderer.invoke('game:save-score', score),
+    progress: () => ipcRenderer.invoke('game:progress'),
+    start: level => ipcRenderer.invoke('game:start', level),
+    checkpoint: (runId, snapshot) => ipcRenderer.invoke('game:checkpoint', runId, snapshot),
+    finish: (runId, outcome, snapshot) => ipcRenderer.invoke('game:finish', runId, outcome, snapshot),
+    sync: () => ipcRenderer.invoke('game:sync'),
   },
 };
 
