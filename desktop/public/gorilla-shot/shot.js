@@ -1,15 +1,15 @@
 // Gorilla Shot adapts Underrun's arena, entities, and renderer for the desktop app.
 // Progress messages contain only game statistics; account data stays in Electron.
 var shot_palette = {
-	background: [0, 0, 0],
-	ambient: [0.47, 0.40, 0.67],
-	purple: [1, 1, 1],
-	red: [1, 1, 1]
+	background: [0.141176, 0.125490, 0.168627],
+	ambient: [0.709804, 0.690196, 0.741176],
+	purple: [0.458824, 0.325490, 1],
+	red: [0.898039, 0.282353, 0.301961]
 };
 var shot_locale = 'en';
 var shot_strings = {
 	en: {
-		game: 'Gorilla Shot', intro: 'Restore the satellite systems, survive the arena, and clear each sector.', deploy: 'Deploy to Sector {level}', note: 'Your mission progress is saved on this device.',
+		game: 'Gorilla Shot', intro: 'Restore the satellite systems, survive the arena, and clear each sector.', deploy: 'Deploy to Sector {level}',
 		move: 'MOVE', aim: 'AIM', fire: 'FIRE', pause: 'PAUSE', ready: 'READY', loading: 'Loading game systems…', loadingTitle: 'PREPARING THE ARENA', loadingStep: 'Loading textures and building the sector…', loadingError: 'The arena could not be loaded. Check your graphics support and try again.',
 		preparing: 'Preparing the arena…', noWebgl: 'WebGL is unavailable on this device.', tryAgain: 'Try again', secured: 'SECTORS SECURED', ended: 'RUN ENDED',
 		cleared: 'All systems are back online. Your run is saved.', failed: 'The mission is over. Your progress is saved.', deployAgain: 'Deploy again',
@@ -17,7 +17,7 @@ var shot_strings = {
 		reboot: 'REBOOTING...', success: 'SUCCESS', systemsOffline: 'SYSTEM(S) STILL OFFLINE', allOnline: 'ALL SYSTEMS ONLINE', triangulating: 'TRIANGULATING POSITION FOR NEXT HOP...', target: 'TARGET ACQUIRED', jumping: 'JUMPING...', scan: 'SCANNING FOR OFFLINE SYSTEMS...___'
 	},
 	'pt-BR': {
-		game: 'Gorilla Shot', intro: 'Restaure os sistemas do satélite, sobreviva à arena e conclua cada setor.', deploy: 'Avançar para o setor {level}', note: 'O progresso da missão fica salvo neste dispositivo.',
+		game: 'Gorilla Shot', intro: 'Restaure os sistemas do satélite, sobreviva à arena e conclua cada setor.', deploy: 'Avançar para o setor {level}',
 		move: 'MOVER', aim: 'MIRAR', fire: 'ATIRAR', pause: 'PAUSAR', ready: 'PRONTO', loading: 'Carregando os sistemas do jogo…', loadingTitle: 'PREPARANDO A ARENA', loadingStep: 'Carregando texturas e montando o setor…', loadingError: 'Não foi possível carregar a arena. Verifique o suporte gráfico e tente novamente.',
 		preparing: 'Preparando a arena…', noWebgl: 'WebGL não está disponível neste dispositivo.', tryAgain: 'Tentar novamente', secured: 'SETORES CONCLUÍDOS', ended: 'PARTIDA ENCERRADA',
 		cleared: 'Todos os sistemas estão online. Sua partida foi salva.', failed: 'A missão terminou. Seu progresso foi salvo.', deployAgain: 'Jogar novamente',
@@ -58,11 +58,11 @@ var shot_overlay = document.getElementById('shot-overlay');
 var shot_heading = document.getElementById('shot-heading');
 var shot_message = document.getElementById('shot-message');
 var shot_start = document.getElementById('shot-start');
-var shot_note = document.querySelector('.shot-overlay-note');
 var shot_loading = document.getElementById('shot-loading');
 var shot_loading_title = document.getElementById('shot-loading-title');
 var shot_loading_step = document.getElementById('shot-loading-step');
 var shot_loading_progress = document.getElementById('shot-loading-progress');
+var shot_fire_key = document.getElementById('shot-fire-key');
 var shot_controls = {
 	move: document.getElementById('shot-move-label'),
 	aim: document.getElementById('shot-aim-label'),
@@ -76,8 +76,8 @@ function shot_apply_locale() {
 		shot_heading.textContent = shot_t('game');
 		shot_message.textContent = shot_t('intro');
 		shot_start.textContent = shot_t('deploy', { level: shot.selectedLevel });
-		shot_note.textContent = shot_t('note');
 		Object.keys(shot_controls).forEach(function(key) { shot_controls[key].textContent = shot_t(key); });
+		shot_fire_key.textContent = shot_locale === 'pt-BR' ? 'CLIQUE E SEGURE' : 'HOLD CLICK';
 	}
 	shot_loading_title.textContent = shot_t('loadingTitle');
 	if (!shot.ready) shot_loading_step.textContent = shot_t('loadingStep');
@@ -121,7 +121,7 @@ function shot_configure(detail) {
 	var previousLevel = shot.selectedLevel;
 	if (Number.isInteger(detail.level)) shot.selectedLevel = Math.max(1, Math.min(3, detail.level));
 	var colors = detail.colors || {};
-	var names = ['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'glow', 'ambient'];
+	var names = ['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'ambient'];
 	for (var i = 0; i < names.length; i++) {
 		var name = names[i];
 		if (typeof colors[name] === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(colors[name])) {

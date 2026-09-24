@@ -12,27 +12,23 @@
     <code id="a" aria-live="off"></code>
     <div id="shot-loading" class="shot-loading" role="status" aria-live="polite">
       <div class="shot-loading-panel">
-        <div class="shot-overlay-brand"><span class="shot-brand-mark">GP</span><span class="shot-overline">GORILLAPUNCH ARCADE</span></div>
         <span class="shot-loading-ring" aria-hidden="true"></span>
-        <strong id="shot-loading-title">BOOTING THE ARENA</strong>
+        <strong id="shot-loading-title">Preparing the arena</strong>
         <span id="shot-loading-step">Loading game systems…</span>
         <div class="shot-loading-meter"><span id="shot-loading-progress"></span></div>
       </div>
     </div>
     <div id="shot-overlay" class="shot-overlay" hidden>
       <div class="shot-overlay-panel">
-        <div class="shot-overlay-brand"><span class="shot-brand-mark">GP</span><span class="shot-overline">GORILLAPUNCH ARCADE</span><span class="shot-ready-chip">READY</span></div>
-        <span class="shot-mission-label">SECTOR SURVIVAL</span>
         <h1 id="shot-heading">GORILLA SHOT</h1>
         <p id="shot-message">Reboot the satellite systems and clear the arena to survive.</p>
         <div class="shot-control-grid" aria-label="Game controls">
           <div><kbd>WASD</kbd><span id="shot-move-label">MOVE</span></div>
           <div><kbd>MOUSE</kbd><span id="shot-aim-label">AIM</span></div>
-          <div><kbd>HOLD CLICK</kbd><span id="shot-fire-label">FIRE</span></div>
+          <div><kbd id="shot-fire-key">HOLD CLICK</kbd><span id="shot-fire-label">FIRE</span></div>
           <div><kbd>P / ESC</kbd><span id="shot-pause-label">PAUSE</span></div>
         </div>
         <button id="shot-start" type="button">Deploy to Sector 1</button>
-        <span id="shot-note" class="shot-overlay-note">Clear the systems. Your mission progress is saved.</span>
       </div>
     </div>
     <script src="dom.js"></script>

@@ -38,7 +38,7 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
   }, []);
   const configure = useCallback(() => {
     const css = getComputedStyle(document.documentElement);
-    const colors = Object.fromEntries(['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'glow', 'ambient'].map(name => [name, css.getPropertyValue(`--shot-${name}`).trim()]));
+    const colors = Object.fromEntries(['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'ambient'].map(name => [name, css.getPropertyValue(`--shot-${name}`).trim()]));
     send('configure', { level: sector, colors, locale });
   }, [locale, sector, send]);
   const syncAudio = useCallback(() => send('audio', { muted, volume }), [muted, send, volume]);
@@ -151,11 +151,11 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
     <div className="page-heading">
       <div><span className="eyebrow">{t('arcade.eyebrow')}</span><h1>{t('arcade.title')}</h1><p>{t('arcade.subtitle')}</p></div>
     </div>
-    <section ref={shell} className="shot-shell panel" aria-label={t('arcade.gameLabel')}>
+    <section ref={shell} className="shot-shell" aria-label={t('arcade.gameLabel')}>
       <header className="shot-toolbar">
-        <div className="shot-brand"><span className="shot-brand-icon"><GameController size={19} weight="fill"/></span><div><strong>{t('arcade.title')}</strong><span>{t('arcade.sectorSurvival')}</span></div></div>
+        <div className="shot-brand"><GameController size={18} aria-hidden="true"/><div><strong>{t('arcade.title')}</strong><span>{t('arcade.sectorSurvival')}</span></div></div>
         <div className="shot-toolbar-actions">
-          <span className={`shot-sync-status ${progress?.sync === 'pending' ? 'pending' : ''}`}><i/>{syncLabel}</span>
+          <span className={`shot-sync-status ${progress?.sync === 'pending' ? 'pending' : ''}`}>{syncLabel}</span>
           <div className="shot-volume-control">
             <Tooltip content={t(muted ? 'arcade.unmute' : 'arcade.mute')}><button type="button" className="secondary-btn shot-tool-btn" aria-label={t(muted ? 'arcade.unmute' : 'arcade.mute')} aria-pressed={muted} onClick={() => setMuted(value => !value)}>{muted || volume === 0 ? <SpeakerSlash size={17}/> : <SpeakerHigh size={17}/>}</button></Tooltip>
             <Tooltip content={`${t('arcade.volume')}: ${Math.round(volume * 100)}%`}><input aria-label={t('arcade.volume')} aria-valuetext={`${Math.round(volume * 100)}%`} type="range" min="0" max="1" step="0.05" value={volume} onChange={event => { const next = Number(event.target.value); setVolume(next); if (next > 0 && muted) setMuted(false); }}/></Tooltip>
@@ -175,7 +175,7 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
       </div>
       <div className="shot-frame-wrap">
         <iframe ref={frame} title={t('arcade.arena')} src="./gorilla-shot/index.html" allow="autoplay; fullscreen" allowFullScreen tabIndex={0} onLoad={() => { configure(); syncAudio(); }}/>
-        {!frameLoaded && <div className="shot-frame-loading" role="status" aria-live="polite"><span className="shot-loading-mark">GP</span><span className="shot-loading-indicator"/><strong>{t('arcade.loading')}</strong><small>{t('arcade.loadingDescription')}</small></div>}
+        {!frameLoaded && <div className="shot-frame-loading" role="status" aria-live="polite"><span className="shot-loading-indicator"/><strong>{t('arcade.loading')}</strong><small>{t('arcade.loadingDescription')}</small></div>}
       </div>
       <footer className="shot-footer">
         <div className="shot-instructions"><span><kbd>WASD</kbd> {t('arcade.move')}</span><span><kbd>MOUSE</kbd> {t('arcade.aim')}</span><span><kbd>{locale === 'pt-BR' ? 'CLIQUE' : 'CLICK'}</kbd> {t('arcade.fire')}</span><span><kbd>P / ESC</kbd> {t('arcade.pause')}</span></div>

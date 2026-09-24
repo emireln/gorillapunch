@@ -9,17 +9,15 @@ html[data-theme='dark'] {
   --bg-tertiary: #1B1821;
   --bg-overlay: #393442;
   --terminal-text: #f1f0f5;
-  --shot-bg: #252033;
-  --shot-surface: #302844;
-  --shot-overlay: #171122EE;
-  --shot-purple: #7553FF;
-  --shot-purple-light: #C7B6FF;
-  --shot-red: #FF002B;
-  --shot-text: #F6F2FF;
-  --shot-muted: #B5B0BD;
-  --shot-glow: #7553FF55;
-  --shot-ambient: #7866B1;
-
+  --shot-bg: var(--bg-secondary);
+  --shot-surface: var(--bg-primary);
+  --shot-overlay: var(--bg-secondary);
+  --shot-purple: var(--accent-vibrant);
+  --shot-purple-light: var(--content-primary);
+  --shot-red: var(--promotion-vibrant);
+  --shot-text: var(--content-headings);
+  --shot-muted: var(--content-secondary);
+  --shot-ambient: var(--content-secondary);
 
   --content-headings: #FFFFFF;
   --content-primary: #E7E5EA;
