@@ -1,13 +1,16 @@
-import { useState, type FormEvent } from 'react';
-import { ArrowsClockwise, Cloud, CloudArrowUp, Desktop, HardDrives, LockKey, Moon, SignOut, Sun } from '@phosphor-icons/react';
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { ArrowsClockwise, Cloud, CloudArrowUp, Desktop, HardDrives, LockKey, Moon, SignOut, Sun, UserCircle } from '@phosphor-icons/react';
 import type { CloudState, DesktopSettings } from '../../shared/types';
 import { Dropdown } from '../components/Dropdown';
 
-export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
+export function Settings({ settings, cloud, pendingCount, onSyncPending, onSettings, onCloud, onAvatar, notify }: {
   settings: DesktopSettings;
   cloud: CloudState;
+  pendingCount: number;
+  onSyncPending(): Promise<void>;
   onSettings(patch: Partial<DesktopSettings>): Promise<void>;
   onCloud(state: CloudState): void;
+  onAvatar(state: CloudState): void;
   notify(message: string, tone?: 'success' | 'error'): void;
 }) {
   const [signup, setSignup] = useState(false);
@@ -18,6 +21,22 @@ export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
   const [busy, setBusy] = useState(false);
   const [checkingForUpdates, setCheckingForUpdates] = useState(false);
   const [accountMessage, setAccountMessage] = useState('');
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [syncingPending, setSyncingPending] = useState(false);
+  const avatarInput = useRef<HTMLInputElement>(null);
+
+  const changeAvatar = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setAvatarBusy(true);
+    try {
+      const webp = await compressAvatar(file);
+      onAvatar(await window.gorillaPunch.cloud.saveAvatar(webp));
+      notify('Profile picture updated.');
+    } catch (error) { notify(error instanceof Error ? error.message : 'Could not update the profile picture.', 'error'); }
+    finally { setAvatarBusy(false); }
+  };
 
   const authenticate = async (event: FormEvent) => {
     event.preventDefault();
@@ -75,6 +94,11 @@ export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
     }
   };
 
+  const retryPending = async () => {
+    setSyncingPending(true);
+    try { await onSyncPending(); } finally { setSyncingPending(false); }
+  };
+
   return <div className="view settings-view">
     <div className="page-heading"><div><span className="eyebrow">PREFERENCES</span><h1>Settings</h1><p>Choose where reports go and adjust how audits run.</p></div></div>
 
@@ -94,8 +118,10 @@ export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
       <div className="settings-intro"><h2>GorillaPunch account</h2><p>Sign in or create an account to sync reports.</p></div>
       <div className="settings-card cloud-account">
         {cloud.authenticated ? <>
-          <div className="account-avatar">{cloud.email?.[0]?.toUpperCase()}</div>
-          <div><strong>{cloud.email}</strong><span>Ready to sync</span></div>
+          {settings.workspace === 'cloud' && <div className="account-avatar">{cloud.avatarDataUrl ? <img src={cloud.avatarDataUrl} alt=""/> : <UserCircle size={28}/>}</div>}
+          <div><strong>{cloud.email}</strong><span>{settings.workspace === 'cloud' ? 'Ready to sync' : 'Saving reports locally'}</span></div>
+          {settings.workspace === 'cloud' && <><input ref={avatarInput} className="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp" aria-label="Choose profile picture" onChange={event => void changeAvatar(event)}/><button className="secondary-btn" disabled={avatarBusy} onClick={() => avatarInput.current?.click()}>{avatarBusy ? 'Saving…' : 'Change picture'}</button>{cloud.avatarDataUrl && <button className="text-btn" disabled={avatarBusy} onClick={() => void window.gorillaPunch.cloud.saveAvatar(null).then(onAvatar).then(() => notify('Profile picture removed.')).catch(error => notify(error instanceof Error ? error.message : 'Could not remove picture.', 'error'))}>Remove</button>}</>}
+          {settings.workspace === 'cloud' && pendingCount > 0 && <button className="secondary-btn" disabled={syncingPending} onClick={() => void retryPending()}><CloudArrowUp size={17}/>{syncingPending ? 'Syncing…' : `Sync ${pendingCount} pending`}</button>}
           <button className="secondary-btn" onClick={() => void signOut()}><SignOut size={17}/> Sign out</button>
         </> : cloud.configured ? <form onSubmit={authenticate}>
           <div className="form-heading"><LockKey size={22}/><div><strong>{signup ? 'Create account' : 'Sign in'}</strong><span>Use your GorillaPunch account to sync reports.</span></div></div>
@@ -136,4 +162,22 @@ export function Settings({ settings, cloud, onSettings, onCloud, notify }: {
 
 function Switch({ label, checked, onChange }: { label: string; checked: boolean; onChange(value: boolean): void }) {
   return <label className="switch-row"><span>{label}</span><input type="checkbox" checked={checked} onChange={event => onChange(event.target.checked)}/><i/></label>;
+}
+
+async function compressAvatar(file: File): Promise<string> {
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024) throw new Error('Choose a PNG, JPEG, or WebP image under 8 MB.');
+  const image = await createImageBitmap(file);
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 160;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Image processing is unavailable.');
+    const side = Math.min(image.width, image.height);
+    context.drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, 160, 160);
+    for (const quality of [0.82, 0.65, 0.45]) {
+      const dataUrl = canvas.toDataURL('image/webp', quality);
+      if (dataUrl.startsWith('data:image/webp;base64,') && dataUrl.length - 23 <= 65536) return dataUrl.slice(23);
+    }
+    throw new Error('This picture could not be compressed enough. Choose another image.');
+  } finally { image.close(); }
 }

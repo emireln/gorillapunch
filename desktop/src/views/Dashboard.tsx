@@ -1,10 +1,8 @@
-import { useState } from 'react';
-import { CheckCircle, CloudArrowUp, Crosshair, GameController, Pause, Play, ShieldCheck } from '@phosphor-icons/react';
+import { CheckCircle, CloudArrowUp, Crosshair, ShieldCheck } from '@phosphor-icons/react';
 import type { DesktopScan, LocalServer, ScanMode, WorkspaceMode } from '../../shared/types';
 import type { ScanItem } from '../utils';
 import { PunchForm } from '../components/PunchForm';
 import { ScanList } from '../components/ScanList';
-import { PixelGame } from '../components/PixelGame';
 
 export function Dashboard({ items, localHistory, workspace, autoSync, cloudConnected, defaultMode, servers, onPunch, onOpen, onHistory }: {
   items: ScanItem[];
@@ -18,13 +16,9 @@ export function Dashboard({ items, localHistory, workspace, autoSync, cloudConne
   onOpen(item: ScanItem): void;
   onHistory(): void;
 }) {
-  const [arcadeOpen, setArcadeOpen] = useState(false);
-  const [arcadePaused, setArcadePaused] = useState(false);
   const completed = items.filter(item => item.scan.status === 'completed');
   const scores = completed.map(item => item.scan.score?.overall).filter((score): score is number => typeof score === 'number');
   const active = localHistory.filter(scan => ['queued', 'running'].includes(scan.status));
-  const isWorkerRunning = active.length > 0;
-  const showArcade = isWorkerRunning || arcadeOpen;
 
   const stats = [
     { label: 'Punches', value: completed.length, icon: Crosshair },
@@ -53,36 +47,6 @@ export function Dashboard({ items, localHistory, workspace, autoSync, cloudConne
         </section>
       )}
 
-      {showArcade && (
-        <section className={`desktop-arcade-card ${isWorkerRunning ? 'running-mode' : ''}`}>
-          <div className="desktop-arcade-header">
-            <div className="arcade-title-group">
-              <span className={`arcade-pill ${isWorkerRunning ? 'active-pulse' : ''}`}>
-                <GameController size={14} weight="bold" />
-                {isWorkerRunning ? 'PUNCH IN PROGRESS' : 'ARCADE'}
-              </span>
-              <strong>{isWorkerRunning ? 'Play Gorilla Run while your site is checked' : 'Gorilla Run'}</strong>
-            </div>
-            <div className="arcade-header-controls">
-              <span className="arcade-tip">Space / click to jump · P to pause</span>
-              <button className="secondary-btn arcade-control-btn" type="button" aria-label={arcadePaused ? 'Resume game' : 'Pause game'} onClick={() => setArcadePaused(value => !value)}>
-                {arcadePaused ? <Play size={15} weight="fill" /> : <Pause size={15} weight="fill" />}
-                {arcadePaused ? 'Resume' : 'Pause'}
-              </button>
-              {!isWorkerRunning && (
-                <button className="text-btn" onClick={() => { setArcadeOpen(false); setArcadePaused(false); }}>
-                  Close
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="desktop-arcade-canvas-wrap">
-            <PixelGame background="var(--arcade-bg, #24202b)" ink="var(--arcade-ink, #957cdf)" paused={arcadePaused} onPauseToggle={() => setArcadePaused(value => !value)} />
-            {arcadePaused && <div className="arcade-pause-overlay" role="status"><strong>Paused</strong><span>Press P or Resume to keep playing</span></div>}
-          </div>
-        </section>
-      )}
-
       <section className="overview-grid">
         {stats.map(stat => (
           <article key={stat.label}>
@@ -92,16 +56,6 @@ export function Dashboard({ items, localHistory, workspace, autoSync, cloudConne
           </article>
         ))}
       </section>
-
-      {!showArcade && (
-        <div className="arcade-launcher-bar">
-          <button className="arcade-launch-btn" onClick={() => setArcadeOpen(true)}>
-            <GameController size={18} weight="duotone" />
-            <span>Play Gorilla Run</span>
-            <small>Retro mini-game while waiting</small>
-          </button>
-        </div>
-      )}
 
       <section className="panel recent-panel">
         <div className="section-title">

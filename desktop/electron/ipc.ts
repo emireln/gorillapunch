@@ -55,6 +55,7 @@ export function registerIpc(services: Services) {
   handle('cloud:history', () => services.cloud.history());
   handle<[string]>('cloud:report', (_event, id) => services.cloud.report(uuid(id)));
   handle<[string]>('cloud:remove', (_event, id) => services.cloud.remove(uuid(id)));
+  handle<[string | null]>('cloud:save-avatar', (_event, value) => services.cloud.saveAvatar(value));
 
   handle('settings:get', () => services.database.settings());
   handle<[Partial<DesktopSettings>]>('settings:update', async (_event, patch) => {

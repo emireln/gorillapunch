@@ -34,6 +34,7 @@ function resolveCloudTarget(): { url: string; anonKey: string; apiUrl: string } 
 export class CloudService {
   private client: SupabaseClient | null = null;
   private currentSession: Session | null = null;
+  private avatarDataUrl: string | null = null;
   private readonly apiUrl: string;
 
   constructor(private readonly database: DesktopDatabase) {
@@ -60,6 +61,7 @@ export class CloudService {
       const { data, error } = await this.client.auth.setSession(parsed);
       if (error) throw error;
       this.currentSession = data.session;
+      await this.loadAvatar();
     } catch {
       await this.database.removeValue(SESSION_KEY);
     }
@@ -72,6 +74,7 @@ export class CloudService {
       email: this.currentSession?.user.email || null,
       userId: this.currentSession?.user.id || null,
       apiUrl: this.apiUrl,
+      avatarDataUrl: this.currentSession?.user ? this.avatarDataUrl : null,
     };
   }
 
@@ -80,6 +83,7 @@ export class CloudService {
     const { data, error } = await client.auth.signInWithPassword({ email: credentials.email.trim().toLowerCase(), password: credentials.password });
     if (error || !data.session) throw new Error(error ? authErrorMessage(error, 'sign-in') : 'We could not sign in. Please try again.');
     this.currentSession = data.session;
+    await this.loadAvatar();
     await this.persistSession(data.session);
     return this.state();
   }
@@ -93,6 +97,7 @@ export class CloudService {
     });
     if (error) throw new Error(authErrorMessage(error, 'sign-up'));
     this.currentSession = data.session;
+    if (data.session) await this.loadAvatar();
     if (data.session) await this.persistSession(data.session);
     return { state: this.state(), needsEmailConfirmation: !data.session };
   }
@@ -100,6 +105,7 @@ export class CloudService {
   async signOut() {
     if (this.client) await this.client.auth.signOut({ scope: 'local' });
     this.currentSession = null;
+    this.avatarDataUrl = null;
     await this.database.removeValue(SESSION_KEY);
     return this.state();
   }
@@ -149,7 +155,10 @@ export class CloudService {
       resources: report.resources.slice(0, 5000),
     };
     const { data, error } = await client.rpc('sync_desktop_punch', { payload });
-    if (error) throw new Error('Report sync failed. Check your connection and try again.');
+    if (error) {
+      if (error.code === 'PGRST202') throw new Error('Cloud report sync is not enabled on this server yet. Apply the desktop report migration and try again.');
+      throw new Error(`Report sync failed: ${safeCloudError(error.message)}`);
+    }
     return cloudScan(data as DesktopScan);
   }
 
@@ -164,6 +173,29 @@ export class CloudService {
     const client = await this.authenticatedClient();
     const { data, error } = await client.rpc('update_owned_finding', { finding_uuid: findingId, next_status: status });
     if (error || !data) throw new Error('This finding could not be updated. Please try again.');
+  }
+
+  async saveAvatar(webpBase64: string | null): Promise<CloudState> {
+    const client = await this.authenticatedClient();
+    const userId = this.currentSession?.user.id;
+    if (!userId) throw new Error('Sign in to change your profile picture.');
+    if (webpBase64 !== null) {
+      if (webpBase64.length > 65536 || !/^[A-Za-z0-9+/]+={0,2}$/.test(webpBase64)) throw new Error('Choose a smaller profile picture.');
+      const bytes = Buffer.from(webpBase64, 'base64');
+      if (bytes.length > 49152 || bytes.toString('ascii', 0, 4) !== 'RIFF' || bytes.toString('ascii', 8, 12) !== 'WEBP') throw new Error('The profile picture must be a compressed WebP image.');
+    }
+    const { error } = await client.from('profiles').update({ avatar_webp: webpBase64 }).eq('id', userId);
+    if (error) throw new Error(['42703', 'PGRST204'].includes(error.code) ? 'Profile pictures are not enabled on this server yet. Apply the profile migration and try again.' : `Could not save profile picture: ${safeCloudError(error.message)}`);
+    this.avatarDataUrl = webpBase64 ? `data:image/webp;base64,${webpBase64}` : null;
+    return this.state();
+  }
+
+  private async loadAvatar() {
+    this.avatarDataUrl = null;
+    const userId = this.currentSession?.user.id;
+    if (!userId || !this.client) return;
+    const { data } = await this.client.from('profiles').select('avatar_webp').eq('id', userId).maybeSingle();
+    if (typeof data?.avatar_webp === 'string' && data.avatar_webp.length <= 65536) this.avatarDataUrl = `data:image/webp;base64,${data.avatar_webp}`;
   }
 
   private requireClient() {
@@ -206,6 +238,10 @@ function authErrorMessage(error: { message: string; status?: number }, action: '
 
 function cloudScan(scan: DesktopScan): DesktopScan {
   return { ...scan, storage: 'cloud', cloud_id: scan.id, synced_at: scan.finished_at || scan.created_at, sync_error: null };
+}
+
+function safeCloudError(message: string) {
+  return message.replace(/eyJ[\w.-]+|sb_[\w-]+/g, '[redacted]').slice(0, 180);
 }
 
 function validCloudConfig(url: string, key: string) {

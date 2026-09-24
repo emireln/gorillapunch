@@ -8,6 +8,7 @@ import { History } from './views/History';
 import { Watchers } from './views/Watchers';
 import { Settings } from './views/Settings';
 import { ReportView } from './views/Report';
+import { Arcade } from './views/Arcade';
 import { errorMessage, type ScanItem } from './utils';
 
 interface Toast { id: number; message: string; tone: 'success' | 'error' }
@@ -53,6 +54,7 @@ export function App() {
       setLocalHistory(current => upsert(current, completed.scan));
       setReport(completed); setReportSource('local'); setView('report');
       if (completed.scan.synced_at) void refreshCloud();
+      if (completed.scan.sync_error) notify(completed.scan.sync_error, 'error');
     });
     const failed = window.gorillaPunch.scans.onError(scan => { setLocalHistory(current => upsert(current, scan)); if (scan.status !== 'cancelled') notify(scan.sync_error || 'Punch failed.', 'error'); });
     const connection = () => { setOnline(navigator.onLine); if (navigator.onLine) void refreshCloud(); };
@@ -132,15 +134,29 @@ export function App() {
     try { const scan = await window.gorillaPunch.scans.sync(report.scan.id); setLocalHistory(current => upsert(current, scan)); setReport(current => current ? { ...current, scan } : current); await refreshCloud(); notify('Report synced to cloud.'); }
     catch (error) { notify(errorMessage(error), 'error'); }
   };
+  const syncPending = async () => {
+    const pending = localHistory.filter(scan => scan.storage === 'cloud' && scan.status === 'completed' && !scan.synced_at);
+    let synced = 0;
+    for (const item of pending) {
+      try {
+        const scan = await window.gorillaPunch.scans.sync(item.id);
+        setLocalHistory(current => upsert(current, scan));
+        setReport(current => current?.scan.id === scan.id ? { ...current, scan } : current);
+        synced++;
+      } catch (error) { notify(errorMessage(error), 'error'); break; }
+    }
+    if (synced) { await refreshCloud(); notify(`${synced} pending ${synced === 1 ? 'report' : 'reports'} synced.`); }
+  };
 
   if (!settings || !cloud) return <div className="boot-screen"><div className="boot-mark">GP</div><span>Loading GorillaPunch…</span></div>;
   return <div className={`desktop-app ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-    <TitleBar workspace={settings.workspace} cloud={cloud} online={online} onPunch={url => void startPunch(url)}/>
+    <TitleBar workspace={settings.workspace} cloud={cloud} online={online} onPunch={url => void startPunch(url)} onProfile={() => setView('settings')}/>
     <div className="desktop-body"><Sidebar view={view} setView={next => { if (next !== 'report') setView(next); }} workspace={settings.workspace} cloud={cloud} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(value => !value)}/><main>
       {view === 'dashboard' && <Dashboard items={items} localHistory={localHistory} workspace={settings.workspace} autoSync={settings.autoSync} cloudConnected={cloud.authenticated} defaultMode={settings.defaultMode} servers={servers} onPunch={startPunch} onOpen={item => void openReport(item)} onHistory={() => setView('history')}/>}
       {view === 'history' && <History items={items} onOpen={item => void openReport(item)}/>}
       {view === 'watchers' && <Watchers watchers={watchers} onAdd={addWatcher} onUpdate={updateWatcher} onRemove={removeWatcher}/>}
-      {view === 'settings' && <Settings settings={settings} cloud={cloud} onSettings={updateSettings} onCloud={state => { setCloud(state); if (state.authenticated) { void updateSettings({ workspace: 'cloud', autoSync: true }); void refreshCloud(state); } else { setCloudHistory([]); void updateSettings({ workspace: 'local' }); } }} notify={notify}/>}
+      {view === 'arcade' && <Arcade/>}
+      {view === 'settings' && <Settings settings={settings} cloud={cloud} pendingCount={localHistory.filter(scan => scan.storage === 'cloud' && scan.status === 'completed' && !scan.synced_at).length} onSyncPending={syncPending} onSettings={updateSettings} onAvatar={setCloud} onCloud={state => { setCloud(state); if (state.authenticated) { void updateSettings({ workspace: 'cloud', autoSync: true }); void refreshCloud(state); } else { setCloudHistory([]); void updateSettings({ workspace: 'local' }); } }} notify={notify}/>}
       {view === 'report' && (loadingReport ? <div className="view loading-view">Loading report evidence…</div> : report ? <ReportView key={report.scan.id} report={report} source={reportSource} onBack={() => setView('history')} onDelete={deleteReport} onSync={syncReport} notify={notify}/> : <div className="view empty-panel">Report unavailable.</div>)}
     </main></div>
     <div className="toast-stack">{toasts.map(toast => <div key={toast.id} className={`toast ${toast.tone}`}>{toast.tone === 'success' ? <CheckCircle size={20}/> : <WarningCircle size={20}/>}<span>{toast.message}</span><button onClick={() => setToasts(current => current.filter(item => item.id !== toast.id))}><X size={16}/></button></div>)}</div>

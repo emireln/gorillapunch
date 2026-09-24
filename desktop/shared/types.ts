@@ -60,6 +60,7 @@ export interface CloudState {
   email: string | null;
   userId: string | null;
   apiUrl: string;
+  avatarDataUrl: string | null;
 }
 
 export interface WatchProject {
@@ -121,6 +122,7 @@ export interface DesktopAPI {
     history(): Promise<DesktopScan[]>;
     report(scanId: string): Promise<DesktopReport | null>;
     remove(scanId: string): Promise<void>;
+    saveAvatar(webpBase64: string | null): Promise<CloudState>;
   };
   settings: {
     get(): Promise<DesktopSettings>;

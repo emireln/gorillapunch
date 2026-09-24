@@ -43,6 +43,7 @@ const api: DesktopAPI = {
     history: () => ipcRenderer.invoke('cloud:history'),
     report: scanId => ipcRenderer.invoke('cloud:report', scanId),
     remove: scanId => ipcRenderer.invoke('cloud:remove', scanId),
+    saveAvatar: webpBase64 => ipcRenderer.invoke('cloud:save-avatar', webpBase64),
   },
   settings: { get: () => ipcRenderer.invoke('settings:get'), update: patch => ipcRenderer.invoke('settings:update', patch) },
   servers: { detect: () => ipcRenderer.invoke('servers:detect') },
