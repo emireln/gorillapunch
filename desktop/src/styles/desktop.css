@@ -28,8 +28,7 @@ button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px
 .spin { animation: spin 900ms linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.gp-tooltip { position: fixed; z-index: 2000; max-width: min(280px, calc(100vw - 16px)); padding: 6px 9px; transform: translate(-50%, -100%); color: var(--content-primary); background: var(--bg-primary); border: 1px solid var(--border-primary); border-radius: var(--radius-sm); box-shadow: var(--shadow-overlay); font-size: 11px; line-height: 1.35; pointer-events: none; white-space: normal; }
-.gp-tooltip.below { transform: translate(-50%, 0); }
+.gp-tooltip { position: fixed; z-index: 2000; max-width: min(280px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; padding: 6px 9px; color: var(--content-primary); background: var(--bg-primary); border: 1px solid var(--border-primary); border-radius: var(--radius-sm); box-shadow: var(--shadow-overlay); font-size: 11px; line-height: 1.35; pointer-events: none; white-space: normal; }
 
 .titlebar { position: relative; z-index: 20; display: flex; flex: 0 0 48px; align-items: center; justify-content: space-between; min-width: 0; height: 48px; min-height: 48px; padding: 0 0 0 12px; overflow: visible; border-bottom: 1px solid var(--border-primary); background: var(--bg-tertiary); app-region: drag; -webkit-app-region: drag; }
 .desktop-brand { display: flex; align-items: center; gap: 9px; height: 100%; }
@@ -305,7 +304,6 @@ main { min-width: 0; min-height: 0; overflow: auto; background: var(--bg-seconda
 .finding-detail { margin-top: 21px; }
 .finding-detail h3 { margin: 0 0 7px; font-size: 12px; }
 .finding-detail p { margin: 0; color: var(--content-secondary); font-size: 12px; line-height: 1.65; white-space: pre-wrap; user-select: text; }
-.inspector-btn { width: 100%; margin-top: 24px; }
 
 .toast-stack { position: fixed; right: 18px; bottom: 18px; z-index: 80; display: grid; gap: 8px; width: min(370px, calc(100vw - 36px)); }
 .toast { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 12px 13px; background: var(--bg-overlay); border: 1px solid var(--border-neutral-muted); border-radius: var(--radius-lg); box-shadow: var(--shadow-overlay); font-size: 12px; }

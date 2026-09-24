@@ -1,6 +1,6 @@
 {
   "name": "gorillapunch-engine",
-  "version": "1.0.87",
+  "version": "1.0.88",
   "private": false,
   "type": "module",
   "description": "GorillaPunch Launch Readiness App",

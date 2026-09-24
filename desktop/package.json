@@ -1,6 +1,6 @@
 {
   "name": "gorillapunch-desktop",
-  "version": "1.0.87",
+  "version": "1.0.88",
   "private": true,
   "type": "module",
   "main": "./out/main/index.js",
