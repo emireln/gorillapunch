@@ -10,6 +10,9 @@ import {
   MONKEY_RUN_FRAME_COUNT,
   MONKEY_RUN_STEP,
   MONKEY_SCALE,
+  MONKEY_STAND_FRAME,
+  MONKEY_STAND_FRAME_COUNT,
+  MONKEY_STAND_STEP_MS,
 } from "../../../src/core/monkey-lad";
 
 const REF_W = 1440;
@@ -470,9 +473,12 @@ export function PixelGame(props: PixelGameProps) {
     const feet = groundY - world.playerY;
     const monkeyFrames = monkeyFramesRef.current;
     if (monkeyFrames) {
-      const frame = world.grounded
-        ? Math.floor(world.dist / (MONKEY_RUN_STEP * S)) % MONKEY_RUN_FRAME_COUNT
-        : MONKEY_JUMP_FRAME;
+      const standing = world.grounded && (p.paused || world.dead);
+      const frame = !world.grounded
+        ? MONKEY_JUMP_FRAME
+        : standing
+          ? MONKEY_STAND_FRAME + Math.floor(performance.now() / MONKEY_STAND_STEP_MS) % MONKEY_STAND_FRAME_COUNT
+          : Math.floor(world.dist / (MONKEY_RUN_STEP * S)) % MONKEY_RUN_FRAME_COUNT;
       const smoothing = ctx.imageSmoothingEnabled;
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(

@@ -1,22 +1,27 @@
 /**
  * CC0 Monkey Lad sprite frames from OpenGameArt, recolored for GorillaPunch.
  * The source atlas is cropped at runtime so both the site and desktop app use
- * the same hand-picked walk and jump poses without shipping unrelated atlas art.
+ * the same hand-picked stand, run, and jump poses without shipping unrelated art.
  */
 export const MONKEY_FRAME_WIDTH = 16;
 export const MONKEY_FRAME_HEIGHT = 24;
 // The source row starts with two turn-in poses and ends with two back-facing
 // poses. Keep the four consistent side-on run frames for a clean loop.
 export const MONKEY_RUN_FRAME_COUNT = 4;
-export const MONKEY_JUMP_FRAME = MONKEY_RUN_FRAME_COUNT;
+export const MONKEY_STAND_FRAME = MONKEY_RUN_FRAME_COUNT;
+export const MONKEY_STAND_FRAME_COUNT = 2;
+export const MONKEY_JUMP_FRAME = MONKEY_STAND_FRAME + MONKEY_STAND_FRAME_COUNT;
 export const MONKEY_SCALE = 0.95;
 export const MONKEY_HITBOX = { left: 2, top: 2, width: 12, height: 20 } as const;
 export const MONKEY_RUN_STEP = 34;
+export const MONKEY_STAND_STEP_MS = 520;
 
 const RUN_ATLAS_X = 480;
 const JUMP_ATLAS_X = 448;
 const WALK_Y = 208;
 const JUMP_Y = 232;
+const STAND_ATLAS_X = 448;
+const STAND_Y = 208;
 
 const BRAND_PALETTE = new Map<number, readonly [number, number, number]>([
   [0x000000, [23, 19, 31]],       // outline
@@ -29,10 +34,10 @@ const BRAND_PALETTE = new Map<number, readonly [number, number, number]>([
   [0xffffff, [246, 242, 255]],    // face details
 ]);
 
-/** Build a compact 4-frame run cycle plus a single jump pose from the atlas. */
+/** Build a compact idle cycle, 4-frame run cycle, and jump pose from the atlas. */
 export function createMonkeyRunnerSheet(source: HTMLImageElement): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
-  canvas.width = MONKEY_FRAME_WIDTH * (MONKEY_RUN_FRAME_COUNT + 1);
+  canvas.width = MONKEY_FRAME_WIDTH * (MONKEY_RUN_FRAME_COUNT + MONKEY_STAND_FRAME_COUNT + 1);
   canvas.height = MONKEY_FRAME_HEIGHT;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("Could not prepare the Monkey Lad sprite.");
@@ -46,6 +51,19 @@ export function createMonkeyRunnerSheet(source: HTMLImageElement): HTMLCanvasEle
       MONKEY_FRAME_WIDTH,
       MONKEY_FRAME_HEIGHT,
       frame * MONKEY_FRAME_WIDTH,
+      0,
+      MONKEY_FRAME_WIDTH,
+      MONKEY_FRAME_HEIGHT,
+    );
+  }
+  for (let frame = 0; frame < MONKEY_STAND_FRAME_COUNT; frame++) {
+    ctx.drawImage(
+      source,
+      STAND_ATLAS_X + frame * MONKEY_FRAME_WIDTH,
+      STAND_Y,
+      MONKEY_FRAME_WIDTH,
+      MONKEY_FRAME_HEIGHT,
+      (MONKEY_STAND_FRAME + frame) * MONKEY_FRAME_WIDTH,
       0,
       MONKEY_FRAME_WIDTH,
       MONKEY_FRAME_HEIGHT,
