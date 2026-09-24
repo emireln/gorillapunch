@@ -8,6 +8,7 @@ import type { DesktopReport, DesktopScan, DesktopScreenshot, DesktopSettings, Sh
 const defaults: DesktopSettings = {
   workspace: 'local',
   theme: 'system',
+  locale: 'auto',
   closeToTray: true,
   notifications: true,
   autoSync: true,
@@ -271,6 +272,7 @@ export function sanitizeSettings(current: DesktopSettings, patch: Partial<Deskto
   const next = { ...current };
   if (patch.workspace === 'local' || patch.workspace === 'cloud') next.workspace = patch.workspace;
   if (patch.theme && ['system', 'dark', 'light'].includes(patch.theme)) next.theme = patch.theme;
+  if (patch.locale && ['auto', 'en', 'pt-BR'].includes(patch.locale)) next.locale = patch.locale;
   for (const key of ['closeToTray', 'notifications', 'autoSync', 'portScan', 'launchAtStartup'] as const) if (typeof patch[key] === 'boolean') next[key] = patch[key]!;
   if (patch.defaultMode === 'quick' || patch.defaultMode === 'full') next.defaultMode = patch.defaultMode;
   if (Number.isInteger(patch.maxPages)) next.maxPages = Math.max(1, Math.min(30, patch.maxPages!));

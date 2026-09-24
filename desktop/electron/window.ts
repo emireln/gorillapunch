@@ -1,16 +1,16 @@
-import { BrowserWindow, shell } from 'electron';
+import { BrowserWindow, screen, shell } from 'electron';
 import { join } from 'node:path';
 import type { DesktopDatabase } from './database';
 
 interface WindowState { x?: number; y?: number; width: number; height: number; maximized: boolean }
 
 export async function createMainWindow(database: DesktopDatabase, requestQuit: () => void, shouldQuit: () => boolean, onCreated: (window: BrowserWindow) => void) {
-  const saved = await windowState(database);
+  const saved = await recoverWindowState(await windowState(database));
   let forceClose = false;
   const window = new BrowserWindow({
     ...saved,
-    minWidth: 1024,
-    minHeight: 720,
+    minWidth: saved.minWidth,
+    minHeight: saved.minHeight,
     show: false,
     frame: false,
     titleBarStyle: 'hidden',
@@ -25,6 +25,28 @@ export async function createMainWindow(database: DesktopDatabase, requestQuit: (
       allowRunningInsecureContent: false,
       spellcheck: false,
     },
+  });
+  const keepWindowVisible = () => {
+    if (window.isDestroyed() || window.isFullScreen()) return;
+    const wasMaximized = window.isMaximized();
+    const normal = window.getNormalBounds();
+    const bounds = recoverWindowState({ ...normal, maximized: false });
+    const changed = normal.x !== bounds.x || normal.y !== bounds.y || normal.width !== bounds.width || normal.height !== bounds.height;
+    window.setMinimumSize(bounds.minWidth, bounds.minHeight);
+    if (!changed) return;
+    if (wasMaximized) window.unmaximize();
+    window.setBounds({ x: bounds.x!, y: bounds.y!, width: bounds.width, height: bounds.height });
+    if (wasMaximized) window.maximize();
+  };
+  screen.on('display-added', keepWindowVisible);
+  screen.on('display-removed', keepWindowVisible);
+  screen.on('display-metrics-changed', keepWindowVisible);
+  window.on('restore', () => setTimeout(keepWindowVisible, 0));
+  window.on('leave-full-screen', () => setTimeout(keepWindowVisible, 0));
+  window.once('closed', () => {
+    screen.removeListener('display-added', keepWindowVisible);
+    screen.removeListener('display-removed', keepWindowVisible);
+    screen.removeListener('display-metrics-changed', keepWindowVisible);
   });
   onCreated(window);
   window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
@@ -70,6 +92,8 @@ export async function createMainWindow(database: DesktopDatabase, requestQuit: (
   return window;
 }
 
+interface RecoveredWindowState extends WindowState { minWidth: number; minHeight: number }
+
 async function windowState(database: DesktopDatabase): Promise<WindowState> {
   const fallback = { width: 1280, height: 820, maximized: false };
   const value = await database.getValue('window_state');
@@ -78,6 +102,23 @@ async function windowState(database: DesktopDatabase): Promise<WindowState> {
     const parsed = JSON.parse(value) as Partial<WindowState>;
     return { width: Math.max(1024, Number(parsed.width) || fallback.width), height: Math.max(720, Number(parsed.height) || fallback.height), ...(Number.isFinite(parsed.x) ? { x: parsed.x } : {}), ...(Number.isFinite(parsed.y) ? { y: parsed.y } : {}), maximized: !!parsed.maximized };
   } catch { return fallback; }
+}
+
+function recoverWindowState(saved: WindowState): RecoveredWindowState {
+  const primary = screen.getPrimaryDisplay();
+  const hasPosition = Number.isFinite(saved.x) && Number.isFinite(saved.y);
+  const matching = hasPosition
+    ? screen.getDisplayMatching({ x: saved.x!, y: saved.y!, width: saved.width, height: saved.height })
+    : primary;
+  const display = matching;
+  const area = display.workArea;
+  const width = Math.min(saved.width, area.width);
+  const height = Math.min(saved.height, area.height);
+  const minWidth = Math.min(1024, area.width);
+  const minHeight = Math.min(720, area.height);
+  const x = hasPosition ? Math.max(area.x, Math.min(saved.x!, area.x + area.width - width)) : undefined;
+  const y = hasPosition ? Math.max(area.y, Math.min(saved.y!, area.y + area.height - height)) : undefined;
+  return { width, height, ...(x === undefined ? {} : { x }), ...(y === undefined ? {} : { y }), maximized: saved.maximized, minWidth, minHeight };
 }
 
 export function reveal(window: BrowserWindow) {

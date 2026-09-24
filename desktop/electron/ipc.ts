@@ -70,7 +70,8 @@ export function registerIpc(services: Services) {
   handle('servers:detect', () => detectLocalServers());
   handle('watchers:list', () => services.watchers.list());
   handle<[string, 'quick' | 'full']>('watchers:add', async (_event, targetUrl, mode) => {
-    const selection = await dialog.showOpenDialog(services.window, { title: 'Choose a project folder to watch', properties: ['openDirectory'] });
+    const locale = (await services.database.settings()).locale;
+    const selection = await dialog.showOpenDialog(services.window, { title: locale === 'pt-BR' || (locale === 'auto' && app.getLocale().toLowerCase().startsWith('pt')) ? 'Escolha uma pasta de projeto para monitorar' : 'Choose a project folder to watch', properties: ['openDirectory'] });
     if (selection.canceled || !selection.filePaths[0]) return null;
     return services.watchers.add(selection.filePaths[0], String(targetUrl), mode === 'full' ? 'full' : 'quick');
   });

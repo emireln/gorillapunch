@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { CloudArrowUp, CornersIn, CornersOut, GameController, Pause, Play, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
 import type { ShotProgress, ShotRunSnapshot, WorkspaceMode } from '../../shared/types';
 import { Dropdown } from '../components/Dropdown';
+import { Tooltip } from '../components/Tooltip';
+import { useDesktopI18n } from '../i18n';
 
 interface Props { workspace: WorkspaceMode; cloudConnected: boolean; online: boolean }
 interface FrameState extends ShotRunSnapshot {
@@ -13,6 +15,7 @@ const timer = (ms: number) => `${Math.floor(ms / 60000).toString().padStart(2, '
 const snap = (s: FrameState): ShotRunSnapshot => ({ levelReached: s.levelReached, durationMs: s.durationMs, score: s.score, kills: s.kills, systems: s.totalSystems });
 
 export function Arcade({ workspace, cloudConnected, online }: Props) {
+  const { t, locale } = useDesktopI18n();
   const frame = useRef<HTMLIFrameElement>(null);
   const shell = useRef<HTMLElement>(null);
   const live = useRef<FrameState>(blank);
@@ -34,11 +37,11 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
   const configure = useCallback(() => {
     const css = getComputedStyle(document.documentElement);
     const colors = Object.fromEntries(['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'glow', 'ambient'].map(name => [name, css.getPropertyValue(`--shot-${name}`).trim()]));
-    send('configure', { level: sector, colors });
-  }, [sector, send]);
+    send('configure', { level: sector, colors, locale });
+  }, [locale, sector, send]);
   const write = useCallback((work: () => Promise<ShotProgress>) => {
-    writes.current = writes.current.then(async () => { setProgress(await work()); }).catch(cause => setError(cause instanceof Error ? cause.message : 'Game progress could not be saved.'));
-  }, []);
+    writes.current = writes.current.then(async () => { setProgress(await work()); }).catch(cause => setError(cause instanceof Error ? cause.message : t('arcade.saveError')));
+  }, [t]);
 
   useEffect(() => { configure(); }, [configure]);
   useEffect(() => {
@@ -50,10 +53,10 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
     let mounted = true;
     void window.gorillaPunch.game.progress().then(p => { if (mounted) setProgress(p); }).catch(e => { if (mounted) setError(String(e)); });
     if (workspace === 'cloud' && cloudConnected && online) {
-      void window.gorillaPunch.game.sync().then(p => { if (mounted) setProgress(p); }).catch(e => { if (mounted) setError(e instanceof Error ? e.message : 'Cloud progress could not sync.'); });
+      void window.gorillaPunch.game.sync().then(p => { if (mounted) setProgress(p); }).catch(e => { if (mounted) setError(e instanceof Error ? e.message : t('arcade.cloudError')); });
     }
     return () => { mounted = false; };
-  }, [workspace, cloudConnected, online]);
+  }, [workspace, cloudConnected, online, t]);
 
   useEffect(() => {
     const receive = (event: MessageEvent) => {
@@ -67,10 +70,10 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
           const next = { ...blank, runId: run.id, levelReached: run.startingLevel, status: 'running' as const };
           live.current = next; setState(next); checkpointAt.current = 0;
           send('start', { runId: run.id, level: run.startingLevel, startedAt: run.startedAt });
-        }).catch(e => { const message = e instanceof Error ? e.message : 'Could not start the game.'; setError(message); send('error', { message }); }).finally(() => { starting.current = false; });
+        }).catch(e => { const message = e instanceof Error ? e.message : t('arcade.startError'); setError(message); send('error', { message }); }).finally(() => { starting.current = false; });
         return;
       }
-      if (event.data.type === 'error') { setError(String(detail.message || 'The game could not start.')); return; }
+      if (event.data.type === 'error') { setError(String(detail.message || t('arcade.gameError'))); return; }
       if (!detail.runId || detail.runId !== live.current.runId || ending.current) return;
       const next = { ...live.current, ...detail } as FrameState;
       live.current = next; setState(next);
@@ -86,7 +89,7 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
     };
     window.addEventListener('message', receive);
     return () => window.removeEventListener('message', receive);
-  }, [configure, sector, send, write]);
+  }, [configure, sector, send, write, t]);
 
   useEffect(() => () => {
     const s = live.current;
@@ -96,56 +99,56 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
   const sync = async () => {
     setSyncing(true); setError(null);
     try { setProgress(await window.gorillaPunch.game.sync()); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Cloud progress could not sync.'); }
+    catch (e) { setError(e instanceof Error ? e.message : t('arcade.cloudError')); }
     finally { setSyncing(false); }
   };
   const toggleFullscreen = async () => {
     try {
       if (document.fullscreenElement === shell.current) await document.exitFullscreen();
       else await shell.current?.requestFullscreen();
-    } catch { setError('Fullscreen is unavailable in this window.'); }
+    } catch { setError(t('arcade.fullscreenError')); }
   };
   const inRun = state.status !== 'idle';
   const maxSector = Math.max(1, progress?.stats.highestLevel || 1);
-  const syncLabel = workspace !== 'cloud' || !cloudConnected ? 'Saved on this device' : !online ? 'Offline · sync pending' : progress?.sync === 'synced' ? 'Cloud progress synced' : 'Cloud sync pending';
+  const syncLabel = workspace !== 'cloud' || !cloudConnected ? t('arcade.savedLocal') : !online ? t('arcade.offlinePending') : progress?.sync === 'synced' ? t('arcade.cloudSynced') : t('arcade.cloudPending');
   return <div className="view arcade-view">
     <div className="page-heading">
-      <div><span className="eyebrow">DESKTOP ARCADE</span><h1>Gorilla Shot</h1><p>Survive the arena, reboot its systems, and clear all three sectors.</p></div>
+      <div><span className="eyebrow">{t('arcade.eyebrow')}</span><h1>{t('arcade.title')}</h1><p>{t('arcade.subtitle')}</p></div>
     </div>
-    <section ref={shell} className="shot-shell panel" aria-label="Gorilla Shot game">
+    <section ref={shell} className="shot-shell panel" aria-label={t('arcade.gameLabel')}>
       <header className="shot-toolbar">
-        <div className="shot-brand"><span className="shot-brand-icon"><GameController size={19} weight="fill"/></span><div><strong>Gorilla Shot</strong><span>Sector survival</span></div></div>
+        <div className="shot-brand"><span className="shot-brand-icon"><GameController size={19} weight="fill"/></span><div><strong>{t('arcade.title')}</strong><span>{t('arcade.sectorSurvival')}</span></div></div>
         <div className="shot-toolbar-actions">
           <span className={`shot-sync-status ${progress?.sync === 'pending' ? 'pending' : ''}`}><i/>{syncLabel}</span>
-          <button type="button" className="secondary-btn shot-tool-btn" aria-label={muted ? 'Unmute game' : 'Mute game'} title={muted ? 'Unmute audio' : 'Mute audio'} onClick={() => { setMuted(!muted); send('mute', { muted: !muted }); }}>{muted ? <SpeakerSlash size={17}/> : <SpeakerHigh size={17}/>}</button>
-          <button type="button" className="secondary-btn shot-tool-btn" aria-label={state.status === 'paused' ? 'Resume game' : 'Pause game'} title={state.status === 'paused' ? 'Resume game' : 'Pause game'} disabled={!inRun} onClick={() => send(state.status === 'paused' ? 'resume' : 'pause')}>{state.status === 'paused' ? <Play size={17} weight="fill"/> : <Pause size={17} weight="fill"/>}</button>
-          <button type="button" className="secondary-btn shot-fullscreen-btn" onClick={() => void toggleFullscreen()} aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'} title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}>{fullscreen ? <CornersIn size={17}/> : <CornersOut size={17}/>}<span>{fullscreen ? 'Exit fullscreen' : 'Fullscreen'}</span></button>
+          <Tooltip content={t(muted ? 'arcade.unmute' : 'arcade.mute')}><button type="button" className="secondary-btn shot-tool-btn" aria-label={t(muted ? 'arcade.unmute' : 'arcade.mute')} onClick={() => { setMuted(!muted); send('mute', { muted: !muted }); }}>{muted ? <SpeakerSlash size={17}/> : <SpeakerHigh size={17}/>}</button></Tooltip>
+          <Tooltip content={t(state.status === 'paused' ? 'arcade.resume' : 'arcade.pause')}><button type="button" className="secondary-btn shot-tool-btn" aria-label={t(state.status === 'paused' ? 'arcade.resume' : 'arcade.pause')} disabled={!inRun} onClick={() => send(state.status === 'paused' ? 'resume' : 'pause')}>{state.status === 'paused' ? <Play size={17} weight="fill"/> : <Pause size={17} weight="fill"/>}</button></Tooltip>
+          <button type="button" className="secondary-btn shot-fullscreen-btn" onClick={() => void toggleFullscreen()} aria-label={t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}>{fullscreen ? <CornersIn size={17}/> : <CornersOut size={17}/>}<span>{t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}</span></button>
         </div>
       </header>
-      <div className="shot-hud" aria-label="Current run statistics">
-        <div><span>SECTOR</span><strong>{state.levelReached.toString().padStart(2, '0')} <i>/ 03</i></strong></div>
-        <div><span>HEALTH</span><strong className="shot-health">{'♥'.repeat(Math.max(0, state.health))}<i>{'♥'.repeat(Math.max(0, state.maxHealth - state.health))}</i></strong></div>
-        <div><span>TIME ALIVE</span><strong>{timer(state.durationMs)}</strong></div>
-        <div><span>SCORE</span><strong>{state.score.toLocaleString()}</strong></div>
-        <div><span>ENEMIES</span><strong>{state.kills}</strong></div>
-        <div><span>SYSTEMS</span><strong>{state.systems} <i>/ {state.systemsTotal}</i></strong></div>
+      <div className="shot-hud" aria-label={t('arcade.statsLabel')}>
+        <div><span>{t('arcade.sector')}</span><strong>{state.levelReached.toString().padStart(2, '0')} <i>/ 03</i></strong></div>
+        <div><span>{t('arcade.health')}</span><strong className="shot-health">{'♥'.repeat(Math.max(0, state.health))}<i>{'♥'.repeat(Math.max(0, state.maxHealth - state.health))}</i></strong></div>
+        <div><span>{t('arcade.timeAlive')}</span><strong>{timer(state.durationMs)}</strong></div>
+        <div><span>{t('arcade.score')}</span><strong>{state.score.toLocaleString(locale)}</strong></div>
+        <div><span>{t('arcade.enemies')}</span><strong>{state.kills.toLocaleString(locale)}</strong></div>
+        <div><span>{t('arcade.systems')}</span><strong>{state.systems.toLocaleString(locale)} <i>/ {state.systemsTotal.toLocaleString(locale)}</i></strong></div>
       </div>
-      <div className="shot-frame-wrap"><iframe ref={frame} title="Gorilla Shot arena" src="./gorilla-shot/index.html" allow="autoplay; fullscreen" allowFullScreen onLoad={configure}/></div>
+      <div className="shot-frame-wrap"><iframe ref={frame} title={t('arcade.arena')} src="./gorilla-shot/index.html" allow="autoplay; fullscreen" allowFullScreen onLoad={configure}/></div>
       <footer className="shot-footer">
-        <div className="shot-instructions"><span><kbd>WASD</kbd> Move</span><span><kbd>MOUSE</kbd> Aim</span><span><kbd>CLICK</kbd> Fire</span><span><kbd>P</kbd> Pause</span></div>
-        <div className="shot-sector-picker"><span>Deploy sector</span><Dropdown<number> ariaLabel="Starting sector" value={sector} disabled={inRun} onChange={setSector} options={Array.from({ length: maxSector }, (_, index) => index + 1).map(n => ({ value: n, label: `Sector ${n}` }))}/></div>
+        <div className="shot-instructions"><span><kbd>WASD</kbd> {t('arcade.move')}</span><span><kbd>MOUSE</kbd> {t('arcade.aim')}</span><span><kbd>{locale === 'pt-BR' ? 'CLIQUE' : 'CLICK'}</kbd> {t('arcade.fire')}</span><span><kbd>P</kbd> {t('arcade.pause')}</span></div>
+        <div className="shot-sector-picker"><span>{t('arcade.deploy')}</span><Dropdown<number> ariaLabel={t('arcade.deploy')} value={sector} disabled={inRun} onChange={setSector} options={Array.from({ length: maxSector }, (_, index) => index + 1).map(n => ({ value: n, label: t('arcade.sectorOption', { level: n }) }))}/></div>
       </footer>
     </section>
     {error && <div className="alert error shot-error" role="alert">{error}</div>}
-    <section className="shot-progress panel" aria-label="Gorilla Shot progress">
-      <div className="section-title shot-progress-heading"><div><span className="eyebrow">YOUR PROGRESS</span><h2>Mission record</h2></div>{workspace === 'cloud' && cloudConnected && <button type="button" className="secondary-btn" disabled={!online || syncing} onClick={() => void sync()}><CloudArrowUp size={16}/>{syncing ? 'Syncing…' : 'Sync now'}</button>}</div>
+    <section className="shot-progress panel" aria-label={t('arcade.progressLabel')}>
+      <div className="section-title shot-progress-heading"><div><span className="eyebrow">{t('arcade.progress')}</span><h2>{t('arcade.record')}</h2></div>{workspace === 'cloud' && cloudConnected && <button type="button" className="secondary-btn" disabled={!online || syncing} onClick={() => void sync()}><CloudArrowUp size={16}/>{syncing ? t('settings.syncing') : t('arcade.syncNow')}</button>}</div>
       <div className="shot-stat-grid">
-        <div className="shot-stat-card"><span>BEST SCORE</span><strong>{(progress?.stats.bestScore || 0).toLocaleString()}</strong></div>
-        <div className="shot-stat-card"><span>LONGEST SURVIVAL</span><strong>{timer(progress?.stats.bestTimeMs || 0)}</strong></div>
-        <div className="shot-stat-card"><span>TOTAL TIME</span><strong>{timer(progress?.stats.totalTimeMs || 0)}</strong></div>
-        <div className="shot-stat-card"><span>RUNS / CLEARS</span><strong>{progress?.stats.runs || 0} / {progress?.stats.clears || 0}</strong></div>
+        <div className="shot-stat-card"><span>{t('arcade.bestScore')}</span><strong>{(progress?.stats.bestScore || 0).toLocaleString(locale)}</strong></div>
+        <div className="shot-stat-card"><span>{t('arcade.longest')}</span><strong>{timer(progress?.stats.bestTimeMs || 0)}</strong></div>
+        <div className="shot-stat-card"><span>{t('arcade.totalTime')}</span><strong>{timer(progress?.stats.totalTimeMs || 0)}</strong></div>
+        <div className="shot-stat-card"><span>{t('arcade.runsClears')}</span><strong>{(progress?.stats.runs || 0).toLocaleString(locale)} / {(progress?.stats.clears || 0).toLocaleString(locale)}</strong></div>
       </div>
-      <div className="shot-recent"><strong>Recent runs</strong>{progress?.recentRuns.length ? <ol>{progress.recentRuns.slice(0, 5).map(run => <li key={run.id}><span className={run.status === 'cleared' ? 'cleared' : ''}>{run.status.toUpperCase()}</span><span>Sector {run.levelReached}</span><span>{timer(run.durationMs)}</span><strong>{run.score.toLocaleString()} pts</strong></li>)}</ol> : <p>Finish a run to begin your mission record.</p>}</div>
+      <div className="shot-recent"><strong>{t('arcade.recentRuns')}</strong>{progress?.recentRuns.length ? <ol>{progress.recentRuns.slice(0, 5).map(run => <li key={run.id}><span className={run.status === 'cleared' ? 'cleared' : ''}>{t(run.status === 'cleared' ? 'arcade.cleared' : run.status === 'abandoned' ? 'arcade.abandoned' : 'arcade.failed')}</span><span>{t('arcade.runLabel', { level: run.levelReached })}</span><span>{timer(run.durationMs)}</span><strong>{run.score.toLocaleString(locale)} {t('arcade.points')}</strong></li>)}</ol> : <p>{t('arcade.firstRecord')}</p>}</div>
     </section>
   </div>;
 }

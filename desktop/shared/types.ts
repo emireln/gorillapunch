@@ -2,6 +2,7 @@ import type { Finding, Metric, PageRecord, Report, Scan, ScanMode } from '../../
 
 export type WorkspaceMode = 'local' | 'cloud';
 export type DesktopTheme = 'system' | 'dark' | 'light';
+export type DesktopLocalePreference = 'auto' | 'en' | 'pt-BR';
 
 export interface DesktopScan extends Scan {
   storage: WorkspaceMode;
@@ -36,6 +37,7 @@ export interface DesktopReport extends Omit<Report, 'scan'> {
 export interface DesktopSettings {
   workspace: WorkspaceMode;
   theme: DesktopTheme;
+  locale: DesktopLocalePreference;
   closeToTray: boolean;
   notifications: boolean;
   autoSync: boolean;

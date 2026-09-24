@@ -3,6 +3,7 @@ import type { DesktopScan, LocalServer, ScanMode, WorkspaceMode } from '../../sh
 import type { ScanItem } from '../utils';
 import { PunchForm } from '../components/PunchForm';
 import { ScanList } from '../components/ScanList';
+import { useDesktopI18n } from '../i18n';
 
 export function Dashboard({ items, localHistory, workspace, autoSync, cloudConnected, defaultMode, servers, onPunch, onOpen, onHistory }: {
   items: ScanItem[];
@@ -16,15 +17,16 @@ export function Dashboard({ items, localHistory, workspace, autoSync, cloudConne
   onOpen(item: ScanItem): void;
   onHistory(): void;
 }) {
+  const { t } = useDesktopI18n();
   const completed = items.filter(item => item.scan.status === 'completed');
   const scores = completed.map(item => item.scan.score?.overall).filter((score): score is number => typeof score === 'number');
   const active = localHistory.filter(scan => ['queued', 'running'].includes(scan.status));
 
   const stats = [
-    { label: 'Punches', value: completed.length, icon: Crosshair },
-    { label: 'Average score', value: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : '—', icon: ShieldCheck },
-    { label: 'Ready to launch', value: completed.filter(item => item.scan.score?.launch).length, icon: CheckCircle },
-    { label: 'Synced reports', value: localHistory.filter(scan => scan.synced_at).length, icon: CloudArrowUp },
+    { label: t('dashboard.punches'), value: completed.length, icon: Crosshair },
+    { label: t('dashboard.averageScore'), value: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : '—', icon: ShieldCheck },
+    { label: t('dashboard.readyLaunch'), value: completed.filter(item => item.scan.score?.launch).length, icon: CheckCircle },
+    { label: t('dashboard.syncedReports'), value: localHistory.filter(scan => scan.synced_at).length, icon: CloudArrowUp },
   ];
 
   return (
@@ -34,14 +36,14 @@ export function Dashboard({ items, localHistory, workspace, autoSync, cloudConne
         <section className="active-queue">
           <div>
             <span className="pulse-dot"/>
-            <strong>{active.length} active {active.length === 1 ? 'punch' : 'punches'}</strong>
+            <strong>{t(active.length === 1 ? 'dashboard.activePunch' : 'dashboard.activePunches', { count: active.length })}</strong>
           </div>
           {active.map(scan => (
             <div className="queue-row" key={scan.id}>
               <span>{new URL(scan.target_url).host}</span>
               <div className="progress-track"><i/></div>
               <small>{scan.stage}</small>
-              <button onClick={() => void window.gorillaPunch.scans.cancel(scan.id)}>Cancel</button>
+              <button onClick={() => void window.gorillaPunch.scans.cancel(scan.id)}>{t('dashboard.cancel')}</button>
             </div>
           ))}
         </section>
@@ -60,10 +62,10 @@ export function Dashboard({ items, localHistory, workspace, autoSync, cloudConne
       <section className="panel recent-panel">
         <div className="section-title">
           <div>
-            <span className="eyebrow">LATEST EVIDENCE</span>
-            <h2>Recent punches</h2>
+            <span className="eyebrow">{t('dashboard.latestEvidence')}</span>
+            <h2>{t('dashboard.recentPunches')}</h2>
           </div>
-          <button className="text-btn" onClick={onHistory}>View all</button>
+          <button className="text-btn" onClick={onHistory}>{t('dashboard.viewAll')}</button>
         </div>
         <ScanList items={items.slice(0, 6)} onOpen={onOpen}/>
       </section>

@@ -127,8 +127,9 @@ function load_level(id, callback) {
 
 		level_num_verts = num_verts;
 
+		var scanMessage = window.shot_t ? window.shot_t('scan') : 'SCANNING FOR OFFLINE SYSTEMS...___';
 		terminal_show_notice(
-			'SCANNING FOR OFFLINE SYSTEMS...___' +
+			scanMessage +
 			(cpus_total)+' SYSTEMS FOUND'
 		);
 		callback && callback();

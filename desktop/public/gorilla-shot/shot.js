@@ -6,6 +6,30 @@ var shot_palette = {
 	purple: [1, 1, 1],
 	red: [1, 1, 1]
 };
+var shot_locale = 'en';
+var shot_strings = {
+	en: {
+		game: 'GORILLA SHOT', intro: 'Move with WASD or arrow keys. Aim with your mouse and hold click to fire.', deploy: 'Deploy to Sector {level}', note: 'Reboot every system to clear all three sectors.',
+		preparing: 'Preparing the arena…', noWebgl: 'WebGL is unavailable on this device.', tryAgain: 'Try again', secured: 'SECTORS SECURED', ended: 'RUN ENDED',
+		cleared: 'All systems are back online. Your run is saved.', failed: 'The mission is over. Your progress is saved.', deployAgain: 'Deploy again',
+		paused: 'PAUSED', pausedMessage: 'The clock is stopped. Take a breath.', resume: 'Resume mission', couldNotStart: 'Could not start the mission.',
+		reboot: 'REBOOTING...', success: 'SUCCESS', systemsOffline: 'SYSTEM(S) STILL OFFLINE', allOnline: 'ALL SYSTEMS ONLINE', triangulating: 'TRIANGULATING POSITION FOR NEXT HOP...', target: 'TARGET ACQUIRED', jumping: 'JUMPING...', scan: 'SCANNING FOR OFFLINE SYSTEMS...___'
+	},
+	'pt-BR': {
+		game: 'GORILLA SHOT', intro: 'Mova com WASD ou as setas. Mire com o mouse e mantenha o clique pressionado para atirar.', deploy: 'Avançar para o setor {level}', note: 'Reinicie todos os sistemas para concluir os três setores.',
+		preparing: 'Preparando a arena…', noWebgl: 'WebGL não está disponível neste dispositivo.', tryAgain: 'Tentar novamente', secured: 'SETORES CONCLUÍDOS', ended: 'PARTIDA ENCERRADA',
+		cleared: 'Todos os sistemas estão online. Sua partida foi salva.', failed: 'A missão terminou. Seu progresso foi salvo.', deployAgain: 'Jogar novamente',
+		paused: 'PAUSADO', pausedMessage: 'O tempo parou. Respire um pouco.', resume: 'Retomar missão', couldNotStart: 'Não foi possível iniciar a missão.',
+		reboot: 'REINICIANDO...', success: 'SUCESSO', systemsOffline: 'SISTEMA(S) AINDA OFFLINE', allOnline: 'TODOS OS SISTEMAS ONLINE', triangulating: 'TRIANGULANDO POSIÇÃO PARA O PRÓXIMO SALTO...', target: 'ALVO LOCALIZADO', jumping: 'SALTANDO...', scan: 'PROCURANDO SISTEMAS OFFLINE...___',
+		story: 'DATA: 13 SET. 2718 - 13:32\nFALHA CRÍTICA DE SOFTWARE DETECTADA\nANALISANDO...\n____\n \nCÓDIGO DO ERRO: JS13K2018\nSTATUS: SISTEMAS OFFLINE\nDESCRIÇÃO: FALHA DE BUFFER CAUSADA POR R.U.D. VIA SATÉLITE\nSISTEMA AFETADO: AUTOMAÇÃO DA INSTALAÇÃO\nSUBSISTEMAS AFETADOS: IA, ESCUDOS DE RADIAÇÃO, ENERGIA\n \nINICIANDO SISTEMA DE RESGATE...\n___FALHOU\n \nTENTANDO REINICIALIZAÇÃO AUTOMÁTICA...\n___FALHOU\n_ \n \nREINICIALIZAÇÃO MANUAL DE TODOS OS SISTEMAS NECESSÁRIA\n_ \nUSE WASD OU AS SETAS PARA MOVER, MOUSE PARA ATIRAR\nCLIQUE PARA INICIAR A MISSÃO\n '
+	}
+};
+function shot_t(key, values) {
+	var text = shot_strings[shot_locale][key] || shot_strings.en[key] || key;
+	Object.keys(values || {}).forEach(function(name) { text = text.replace('{' + name + '}', values[name]); });
+	return text;
+}
+window.shot_t = shot_t;
 var shot = {
 	active: false,
 	paused: false,
@@ -28,6 +52,17 @@ var shot_overlay = document.getElementById('shot-overlay');
 var shot_heading = document.getElementById('shot-heading');
 var shot_message = document.getElementById('shot-message');
 var shot_start = document.getElementById('shot-start');
+var shot_note = document.querySelector('.shot-overlay-note');
+
+function shot_apply_locale() {
+	document.documentElement.lang = shot_locale;
+	if (!shot.active && !shot.waiting) {
+		shot_heading.textContent = shot_t('game');
+		shot_message.textContent = shot_t('intro');
+		shot_start.textContent = shot_t('deploy', { level: shot.selectedLevel });
+		shot_note.textContent = shot_t('note');
+	}
+}
 
 function shot_send(type, detail) {
 	window.parent.postMessage({ channel: 'gorilla-shot-frame', type: type, detail: detail || {} }, '*');
@@ -62,6 +97,8 @@ function shot_color(value) {
 
 function shot_configure(detail) {
 	if (!detail || typeof detail !== 'object') return;
+	shot_locale = detail.locale === 'pt-BR' ? 'pt-BR' : 'en';
+	shot_apply_locale();
 	if (Number.isInteger(detail.level)) shot.selectedLevel = Math.max(1, Math.min(3, detail.level));
 	var colors = detail.colors || {};
 	var names = ['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'glow', 'ambient'];
@@ -75,7 +112,7 @@ function shot_configure(detail) {
 	shot_palette.ambient = shot_color(colors.ambient) || shot_palette.ambient;
 	shot_palette.purple = shot_color(colors.purple) || shot_palette.purple;
 	shot_palette.red = shot_color(colors.red) || shot_palette.red;
-	if (!shot.active && !shot.waiting) shot_start.textContent = 'Deploy to Sector ' + shot.selectedLevel;
+	if (!shot.active && !shot.waiting) shot_start.textContent = shot_t('deploy', { level: shot.selectedLevel });
 	shot_start.disabled = false;
 }
 
@@ -89,13 +126,13 @@ function shot_show_overlay(heading, message, button) {
 
 function shot_fail(message) {
 	shot.waiting = false;
-	shot_show_overlay('GORILLA SHOT', message, 'Try again');
+	shot_show_overlay(shot_t('game'), message, shot_t('tryAgain'));
 	shot_send('error', { message: message });
 }
 
 function shot_begin(runId, level, startedAt) {
 	if (shot.active || typeof runId !== 'string' || !/^[0-9a-f-]{36}$/i.test(runId)) return;
-	if (!gl) { shot_fail('WebGL is unavailable on this device.'); return; }
+	if (!gl) { shot_fail(shot_t('noWebgl')); return; }
 	shot.waiting = false;
 	shot.startLevel = Math.max(1, Math.min(3, Number(level) || 1));
 	shot.runId = runId;
@@ -138,9 +175,9 @@ function shot_finish(outcome) {
 	void audio_ctx.suspend();
 	shot_publish('end', { outcome: outcome });
 	shot_show_overlay(
-		outcome === 'cleared' ? 'SECTORS SECURED' : 'RUN ENDED',
-		outcome === 'cleared' ? 'All systems are back online. Your run is saved.' : 'The mission is over. Your progress is saved.',
-		'Deploy again'
+		outcome === 'cleared' ? shot_t('secured') : shot_t('ended'),
+		outcome === 'cleared' ? shot_t('cleared') : shot_t('failed'),
+		shot_t('deployAgain')
 	);
 }
 
@@ -151,7 +188,7 @@ function shot_pause(paused) {
 	time_last = performance.now();
 	if (paused) {
 		void audio_ctx.suspend();
-		shot_show_overlay('PAUSED', 'The clock is stopped. Take a breath.', 'Resume mission');
+		shot_show_overlay(shot_t('paused'), shot_t('pausedMessage'), shot_t('resume'));
 	} else {
 		shot_overlay.hidden = true;
 		if (!shot.muted) void audio_ctx.resume();
@@ -248,7 +285,7 @@ shot_start.addEventListener('click', function() {
 	if (shot.active || shot.waiting) return;
 	shot.waiting = true;
 	shot_start.disabled = true;
-	shot_message.textContent = 'Preparing the arena…';
+	shot_message.textContent = shot_t('preparing');
 	void audio_ctx.resume();
 	if (!shot.audioStarted) { shot.audioStarted = true; audio_init(function() {}); }
 	shot_send('start-request', { level: shot.selectedLevel });
@@ -266,7 +303,7 @@ window.addEventListener('message', function(event) {
 		if (shot.muted) void audio_ctx.suspend();
 		else if (shot.active && !shot.paused) void audio_ctx.resume();
 	}
-	if (event.data.type === 'error') shot_fail(String(detail.message || 'Could not start the mission.'));
+	if (event.data.type === 'error') shot_fail(String(detail.message || shot_t('couldNotStart')));
 });
 
 document.addEventListener('keydown', function(event) {

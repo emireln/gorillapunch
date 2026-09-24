@@ -23,7 +23,7 @@ describe('desktop local workspace', () => {
 
   it('keeps local workspace cloud sync disabled and clamps scan budgets', () => {
     const next = sanitizeSettings({
-      workspace: 'cloud', theme: 'system', closeToTray: true, notifications: true, autoSync: true,
+      workspace: 'cloud', theme: 'system', locale: 'auto', closeToTray: true, notifications: true, autoSync: true,
       defaultMode: 'quick', maxPages: 8, maxDepth: 2, maxDurationSeconds: 120, concurrency: 1,
       portScan: true, launchAtStartup: false,
     }, { workspace: 'local', autoSync: true, maxPages: 999, concurrency: 10 });

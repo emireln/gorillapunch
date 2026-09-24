@@ -11,19 +11,21 @@ export function createTray(window: BrowserWindow, database: DesktopDatabase, sca
   const activeIcon = nativeImage.createFromPath(asset('tray-active.png')).resize({ width: 20, height: 20 });
   const tray = new Tray(icon);
   tray.setToolTip('GorillaPunch');
-  const rebuild = () => {
+  const rebuild = async () => {
+    const settings = await database.settings();
+    const portuguese = isPortuguese(settings.locale);
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: 'Open GorillaPunch', click: () => reveal(window) },
-      { label: 'Quick Punch from Clipboard', click: () => { void quickPunch(); } },
+      { label: portuguese ? 'Abrir GorillaPunch' : 'Open GorillaPunch', click: () => reveal(window) },
+      { label: portuguese ? 'Analisar URL da área de transferência' : 'Quick Punch from Clipboard', click: () => { void quickPunch(); } },
       { type: 'separator' },
-      { label: scans.isPaused() ? 'Resume queue' : 'Pause queue', click: () => { void scans.setPaused(!scans.isPaused()).then(rebuild); } },
-      { label: 'Check for updates…', click: () => {
+      { label: scans.isPaused() ? (portuguese ? 'Retomar fila' : 'Resume queue') : (portuguese ? 'Pausar fila' : 'Pause queue'), click: () => { void scans.setPaused(!scans.isPaused()).then(() => void rebuild()); } },
+      { label: portuguese ? 'Verificar atualizações…' : 'Check for updates…', click: () => {
         void checkForUpdates().then(message => {
-          if (Notification.isSupported()) new Notification({ title: 'GorillaPunch update check', body: message, silent: true }).show();
+          if (Notification.isSupported()) new Notification({ title: portuguese ? 'Verificação de atualização do GorillaPunch' : 'GorillaPunch update check', body: localizeUpdateMessage(message, portuguese), silent: true }).show();
         });
       } },
       { type: 'separator' },
-      { label: 'Quit', click: requestQuit },
+      { label: portuguese ? 'Sair' : 'Quit', click: requestQuit },
     ]));
   };
   const quickPunch = async () => {
@@ -54,10 +56,11 @@ export function createTray(window: BrowserWindow, database: DesktopDatabase, sca
 export async function notifyComplete(window: BrowserWindow, database: DesktopDatabase, report: DesktopReport) {
   const settings = await database.settings();
   if (!settings.notifications || !Notification.isSupported()) return;
+  const portuguese = isPortuguese(settings.locale);
   const score = report.scan.score;
   const notification = new Notification({
-    title: 'GorillaPunch — Audit complete',
-    body: `${new URL(report.scan.target_url).host} — ${score?.overall ?? '—'}/100 (${score?.verdict || 'INSUFFICIENT COVERAGE'})`,
+    title: portuguese ? 'GorillaPunch — Análise concluída' : 'GorillaPunch — Audit complete',
+    body: `${new URL(report.scan.target_url).host} — ${score?.overall ?? '—'}/100 (${localizeVerdict(score?.verdict || 'INSUFFICIENT COVERAGE', portuguese)})`,
     silent: false,
   });
   notification.on('click', () => {
@@ -65,4 +68,22 @@ export async function notifyComplete(window: BrowserWindow, database: DesktopDat
     window.webContents.send('report:open', { scanId: report.scan.id, source: 'local' });
   });
   notification.show();
+}
+
+function isPortuguese(locale: string) {
+  return locale === 'pt-BR' || (locale === 'auto' && app.getLocale().toLowerCase().startsWith('pt'));
+}
+
+function localizeUpdateMessage(message: string, portuguese: boolean) {
+  if (!portuguese) return message;
+  if (message.includes('up to date')) return 'O GorillaPunch está atualizado.';
+  const version = message.match(/Version ([\d.]+) is available\./)?.[1];
+  if (version) return `A versão ${version} está disponível.`;
+  if (message.includes('unavailable')) return 'O serviço de atualização está indisponível no momento.';
+  return message;
+}
+
+function localizeVerdict(verdict: string, portuguese: boolean) {
+  if (!portuguese) return verdict;
+  return ({ 'READY TO LAUNCH': 'PRONTO PARA LANÇAR', 'ALMOST READY': 'QUASE PRONTO', 'NOT READY': 'NÃO ESTÁ PRONTO', 'DO NOT LAUNCH': 'NÃO LANCE', 'INSUFFICIENT COVERAGE': 'COBERTURA INSUFICIENTE' } as Record<string, string>)[verdict] || verdict;
 }

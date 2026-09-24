@@ -15,6 +15,21 @@ var terminal_text_title = '' +
 	' \n' +
 	'CONNECTING...';
 
+var terminal_text_title_pt = '' +
+	'UNDERRUN\n' +
+	'__ \n' +
+	'CONCEITO, GRÁFICOS E PROGRAMAÇÃO:\n' +
+	'DOMINIC SZABLEWSKI // PHOBOSLAB.ORG\n' +
+	'__ \n' +
+	'MÚSICA:\n' +
+	'ANDREAS LÖSCH // NO-FATE.NET\n' +
+	'___ \n' +
+	'VERSÃO DO SISTEMA: 13.20.18\n' +
+	'CPU: PL(R) Q-COATL 7240 @ 12.6 THZ\n' +
+	'MEMÓRIA: 108086391056891900 BYTES\n' +
+	' \n' +
+	'CONECTANDO...';
+
 var terminal_text_garbage = 
 	'´A1e{∏éI9·NQ≥ÀΩ¸94CîyîR›kÈ¡˙ßT-;ûÅf^˛,¬›A∫Sã€«ÕÕ' +
 	'1f@çX8ÎRjßf•ò√ã0êÃcÄ]Î≤moDÇ’ñ‰\\ˇ≠n=(s7É;';
@@ -133,7 +148,8 @@ function terminal_show_notice(notice, callback) {
 
 function terminal_run_intro(callback) {
 	terminal_text_buffer = [];
-	terminal_write_text(terminal_prepare_text(terminal_text_title), function(){
+	var title = window.shot_locale === 'pt-BR' ? terminal_text_title_pt : terminal_text_title;
+	terminal_write_text(terminal_prepare_text(title), function(){
 		terminal_timeout_id = setTimeout(function(){
 			terminal_run_garbage(callback);
 		}, 4000);
@@ -163,7 +179,8 @@ function terminal_run_garbage(callback) {
 function terminal_run_story(callback) {
 	terminal_print_ident = true;
 	terminal_line_wait = 100;
-	terminal_write_text(terminal_prepare_text(terminal_text_story), callback);
+	var story = window.shot_locale === 'pt-BR' && window.shot_t ? window.shot_t('story') : terminal_text_story;
+	terminal_write_text(terminal_prepare_text(story), callback);
 }
 
 function terminal_run_outro(callback) {
