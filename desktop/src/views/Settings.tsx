@@ -107,7 +107,9 @@ export function Settings({ settings, cloud, pendingCount, onSyncPending, onSetti
       const message = await window.gorillaPunch.system.checkForUpdates();
       const version = message.match(/^Version (.+) is available\.$/)?.[1];
       setUpdateState(await window.gorillaPunch.system.getUpdateState());
-      notify(version ? t('settings.updateAvailable', { version }) : message.includes('up to date') ? t('settings.updateCurrent') : message, message.includes('unavailable') ? 'error' : 'success');
+      const lowerMessage = message.toLowerCase();
+      const text = version ? t('settings.updateAvailable', { version }) : lowerMessage.includes('up to date') ? t('settings.updateCurrent') : lowerMessage.includes('unavailable') || lowerMessage.includes('packaged builds') ? t('settings.updatesUnavailable') : message;
+      notify(text, lowerMessage.includes('unavailable') || lowerMessage.includes('packaged builds') ? 'error' : 'success');
     } catch (error) {
       notify(error instanceof Error ? error.message : t('settings.updatesUnavailable'), 'error');
     } finally {

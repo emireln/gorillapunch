@@ -77,7 +77,7 @@ async function boot() {
         return 'GorillaPunch is up to date.';
       }
       const version = result.updateInfo.version;
-      if (updateState.status !== 'downloaded' || updateState.version !== version) publishUpdateState({ status: 'available', version });
+      if ((updateState.status !== 'downloaded' && updateState.status !== 'downloading') || updateState.version !== version) publishUpdateState({ status: 'available', version });
       return `Version ${version} is available.`;
     } catch (error) {
       diagnostic(`update check failed: ${error instanceof Error ? error.message : String(error)}`);
