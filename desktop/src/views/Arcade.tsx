@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CloudArrowUp, CornersIn, CornersOut, GameController, Pause, Play, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
+import { CloudArrowUp, CornersIn, CornersOut, Pause, Play, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
 import type { ShotProgress, ShotRunSnapshot, WorkspaceMode } from '../../shared/types';
 import { Dropdown } from '../components/Dropdown';
 import { Tooltip } from '../components/Tooltip';
@@ -17,7 +17,6 @@ const snap = (s: FrameState): ShotRunSnapshot => ({ levelReached: s.levelReached
 export function Arcade({ workspace, cloudConnected, online }: Props) {
   const { t, locale } = useDesktopI18n();
   const frame = useRef<HTMLIFrameElement>(null);
-  const shell = useRef<HTMLElement>(null);
   const live = useRef<FrameState>(blank);
   const writes = useRef<Promise<void>>(Promise.resolve());
   const starting = useRef(false);
@@ -26,6 +25,7 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
   const [state, setState] = useState<FrameState>(blank);
   const [progress, setProgress] = useState<ShotProgress | null>(null);
   const [sector, setSector] = useState(1);
+  const [map, setMap] = useState(0);
   const [muted, setMuted] = useState(readSavedMute);
   const [volume, setVolume] = useState(readSavedVolume);
   const [syncing, setSyncing] = useState(false);
@@ -39,8 +39,8 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
   const configure = useCallback(() => {
     const css = getComputedStyle(document.documentElement);
     const colors = Object.fromEntries(['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'ambient'].map(name => [name, css.getPropertyValue(`--shot-${name}`).trim()]));
-    send('configure', { level: sector, colors, locale });
-  }, [locale, sector, send]);
+    send('configure', { level: sector, map, colors, locale });
+  }, [locale, map, sector, send]);
   const syncAudio = useCallback(() => send('audio', { muted, volume }), [muted, send, volume]);
   const write = useCallback((work: () => Promise<ShotProgress>) => {
     writes.current = writes.current.then(async () => { setProgress(await work()); }).catch(cause => setError(cause instanceof Error ? cause.message : t('arcade.saveError')));
@@ -80,9 +80,12 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
     };
   }, [send]);
   useEffect(() => {
-    const changed = () => setFullscreen(document.fullscreenElement === shell.current);
-    document.addEventListener('fullscreenchange', changed);
-    return () => document.removeEventListener('fullscreenchange', changed);
+    const stop = window.gorillaPunch.window.onFullscreen(setFullscreen);
+    void window.gorillaPunch.window.isFullscreen().then(setFullscreen).catch(() => {});
+    return () => {
+      stop();
+      void window.gorillaPunch.window.setFullscreen(false).catch(() => {});
+    };
   }, []);
   useEffect(() => {
     let mounted = true;
@@ -140,8 +143,7 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
   };
   const toggleFullscreen = async () => {
     try {
-      if (document.fullscreenElement === shell.current) await document.exitFullscreen();
-      else await shell.current?.requestFullscreen();
+      setFullscreen(await window.gorillaPunch.window.setFullscreen(!fullscreen));
     } catch { setError(t('arcade.fullscreenError')); }
   };
   const inRun = state.status !== 'idle';
@@ -149,11 +151,14 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
   const syncLabel = workspace !== 'cloud' || !cloudConnected ? t('arcade.savedLocal') : !online ? t('arcade.offlinePending') : progress?.sync === 'synced' ? t('arcade.cloudSynced') : t('arcade.cloudPending');
   return <div className="view arcade-view">
     <div className="page-heading">
-      <div><span className="eyebrow">{t('arcade.eyebrow')}</span><h1>{t('arcade.title')}</h1><p>{t('arcade.subtitle')}</p></div>
+      <div><h1>{t('arcade.title')}</h1></div>
     </div>
-    <section ref={shell} className="shot-shell" aria-label={t('arcade.gameLabel')}>
+    <section className={`shot-shell${fullscreen ? ' is-fullscreen' : ''}${inRun ? ' has-run' : ''}`} aria-label={t('arcade.gameLabel')}>
       <header className="shot-toolbar">
-        <div className="shot-brand"><GameController size={18} aria-hidden="true"/><div><strong>{t('arcade.title')}</strong><span>{t('arcade.sectorSurvival')}</span></div></div>
+        <div className="shot-map-pickers">
+          <Dropdown<number> ariaLabel={t('arcade.deploy')} value={sector} disabled={!frameLoaded || inRun} onChange={setSector} options={Array.from({ length: maxSector }, (_, index) => index + 1).map(n => ({ value: n, label: t('arcade.sectorOption', { level: n }) }))}/>
+          <Dropdown<number> ariaLabel={t('arcade.map')} value={map} disabled={!frameLoaded || inRun} onChange={setMap} options={[t('arcade.map1'), t('arcade.map2'), t('arcade.map3')].map((label, value) => ({ value, label }))}/>
+        </div>
         <div className="shot-toolbar-actions">
           <span className={`shot-sync-status ${progress?.sync === 'pending' ? 'pending' : ''}`}>{syncLabel}</span>
           <div className="shot-volume-control">
@@ -162,25 +167,21 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
             <span>{Math.round(volume * 100)}%</span>
           </div>
           <Tooltip content={t(state.status === 'paused' ? 'arcade.resume' : 'arcade.pause')}><button type="button" className="secondary-btn shot-tool-btn" aria-label={t(state.status === 'paused' ? 'arcade.resume' : 'arcade.pause')} disabled={!inRun} onClick={() => send(state.status === 'paused' ? 'resume' : 'pause')}>{state.status === 'paused' ? <Play size={17} weight="fill"/> : <Pause size={17} weight="fill"/>}</button></Tooltip>
-          <Tooltip content={t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}><button type="button" className="secondary-btn shot-fullscreen-btn" disabled={!frameLoaded} onClick={() => void toggleFullscreen()} aria-label={t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}>{fullscreen ? <CornersIn size={17}/> : <CornersOut size={17}/>}<span>{t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}</span></button></Tooltip>
+          <Tooltip content={t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}><button type="button" className="secondary-btn shot-fullscreen-btn" onClick={() => void toggleFullscreen()} aria-label={t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}>{fullscreen ? <CornersIn size={17}/> : <CornersOut size={17}/>}<span>{t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}</span></button></Tooltip>
         </div>
       </header>
-      <div className="shot-hud" aria-label={t('arcade.statsLabel')}>
+      {inRun && <div className="shot-hud" aria-label={t('arcade.statsLabel')}>
         <div><span>{t('arcade.sector')}</span><strong>{state.levelReached.toString().padStart(2, '0')} <i>/ 03</i></strong></div>
         <div><span>{t('arcade.health')}</span><strong className="shot-health">{'♥'.repeat(Math.max(0, state.health))}<i>{'♥'.repeat(Math.max(0, state.maxHealth - state.health))}</i></strong></div>
         <div><span>{t('arcade.timeAlive')}</span><strong>{timer(state.durationMs)}</strong></div>
         <div><span>{t('arcade.score')}</span><strong>{state.score.toLocaleString(locale)}</strong></div>
         <div><span>{t('arcade.enemies')}</span><strong>{state.kills.toLocaleString(locale)}</strong></div>
         <div><span>{t('arcade.systems')}</span><strong>{state.systems.toLocaleString(locale)} <i>/ {state.systemsTotal.toLocaleString(locale)}</i></strong></div>
-      </div>
+      </div>}
       <div className="shot-frame-wrap">
         <iframe ref={frame} title={t('arcade.arena')} src="./gorilla-shot/index.html" allow="autoplay; fullscreen" allowFullScreen tabIndex={0} onLoad={() => { configure(); syncAudio(); }}/>
         {!frameLoaded && <div className="shot-frame-loading" role="status" aria-live="polite"><span className="shot-loading-indicator"/><strong>{t('arcade.loading')}</strong><small>{t('arcade.loadingDescription')}</small></div>}
       </div>
-      <footer className="shot-footer">
-        <div className="shot-instructions"><span><kbd>WASD</kbd> {t('arcade.move')}</span><span><kbd>MOUSE</kbd> {t('arcade.aim')}</span><span><kbd>{locale === 'pt-BR' ? 'CLIQUE' : 'CLICK'}</kbd> {t('arcade.fire')}</span><span><kbd>P / ESC</kbd> {t('arcade.pause')}</span></div>
-        <div className="shot-sector-picker"><span>{t('arcade.deploy')}</span><Dropdown<number> ariaLabel={t('arcade.deploy')} value={sector} disabled={!frameLoaded || inRun} onChange={setSector} options={Array.from({ length: maxSector }, (_, index) => index + 1).map(n => ({ value: n, label: t('arcade.sectorOption', { level: n }) }))}/></div>
-      </footer>
     </section>
     {error && <div className="alert error shot-error" role="alert">{error}</div>}
     <section className="shot-progress panel" aria-label={t('arcade.progressLabel')}>

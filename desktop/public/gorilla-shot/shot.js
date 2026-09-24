@@ -9,16 +9,16 @@ var shot_palette = {
 var shot_locale = 'en';
 var shot_strings = {
 	en: {
-		game: 'Gorilla Shot', intro: 'Restore the satellite systems, survive the arena, and clear each sector.', deploy: 'Deploy to Sector {level}',
-		move: 'MOVE', aim: 'AIM', fire: 'FIRE', pause: 'PAUSE', ready: 'READY', loading: 'Loading game systems…', loadingTitle: 'PREPARING THE ARENA', loadingStep: 'Loading textures and building the sector…', loadingError: 'The arena could not be loaded. Check your graphics support and try again.',
+		intro: '', deploy: 'Play Sector {level}',
+		move: 'MOVE', aim: 'AIM', fire: 'FIRE', pause: 'PAUSE', ready: 'Ready to play?', errorTitle: 'ARENA UNAVAILABLE', loading: 'Loading game systems…', loadingTitle: 'PREPARING THE ARENA', loadingStep: 'Loading textures and building the sector…', loadingError: 'The arena could not be loaded. Check your graphics support and try again.',
 		preparing: 'Preparing the arena…', noWebgl: 'WebGL is unavailable on this device.', tryAgain: 'Try again', secured: 'SECTORS SECURED', ended: 'RUN ENDED',
 		cleared: 'All systems are back online. Your run is saved.', failed: 'The mission is over. Your progress is saved.', deployAgain: 'Deploy again',
 		paused: 'PAUSED', pausedMessage: 'The clock is stopped. Take a breath.', resume: 'Resume mission', couldNotStart: 'Could not start the mission.',
 		reboot: 'REBOOTING...', success: 'SUCCESS', systemsOffline: 'SYSTEM(S) STILL OFFLINE', allOnline: 'ALL SYSTEMS ONLINE', triangulating: 'TRIANGULATING POSITION FOR NEXT HOP...', target: 'TARGET ACQUIRED', jumping: 'JUMPING...', scan: 'SCANNING FOR OFFLINE SYSTEMS...___'
 	},
 	'pt-BR': {
-		game: 'Gorilla Shot', intro: 'Restaure os sistemas do satélite, sobreviva à arena e conclua cada setor.', deploy: 'Avançar para o setor {level}',
-		move: 'MOVER', aim: 'MIRAR', fire: 'ATIRAR', pause: 'PAUSAR', ready: 'PRONTO', loading: 'Carregando os sistemas do jogo…', loadingTitle: 'PREPARANDO A ARENA', loadingStep: 'Carregando texturas e montando o setor…', loadingError: 'Não foi possível carregar a arena. Verifique o suporte gráfico e tente novamente.',
+		intro: '', deploy: 'Jogar no setor {level}',
+		move: 'MOVER', aim: 'MIRAR', fire: 'ATIRAR', pause: 'PAUSAR', ready: 'Pronto para jogar?', errorTitle: 'ARENA INDISPONÍVEL', loading: 'Carregando os sistemas do jogo…', loadingTitle: 'PREPARANDO A ARENA', loadingStep: 'Carregando texturas e montando o setor…', loadingError: 'Não foi possível carregar a arena. Verifique o suporte gráfico e tente novamente.',
 		preparing: 'Preparando a arena…', noWebgl: 'WebGL não está disponível neste dispositivo.', tryAgain: 'Tentar novamente', secured: 'SETORES CONCLUÍDOS', ended: 'PARTIDA ENCERRADA',
 		cleared: 'Todos os sistemas estão online. Sua partida foi salva.', failed: 'A missão terminou. Seu progresso foi salvo.', deployAgain: 'Jogar novamente',
 		paused: 'PAUSADO', pausedMessage: 'O tempo parou. Respire um pouco.', resume: 'Retomar missão', couldNotStart: 'Não foi possível iniciar a missão.',
@@ -27,7 +27,7 @@ var shot_strings = {
 	}
 };
 function shot_t(key, values) {
-	var text = shot_strings[shot_locale][key] || shot_strings.en[key] || key;
+	var text = Object.prototype.hasOwnProperty.call(shot_strings[shot_locale], key) ? shot_strings[shot_locale][key] : (shot_strings.en[key] || key);
 	Object.keys(values || {}).forEach(function(name) { text = text.replace('{' + name + '}', values[name]); });
 	return text;
 }
@@ -73,7 +73,7 @@ var shot_controls = {
 function shot_apply_locale() {
 	document.documentElement.lang = shot_locale;
 	if (!shot.active && !shot.waiting) {
-		shot_heading.textContent = shot_t('game');
+		shot_heading.textContent = shot_t('ready');
 		shot_message.textContent = shot_t('intro');
 		shot_start.textContent = shot_t('deploy', { level: shot.selectedLevel });
 		Object.keys(shot_controls).forEach(function(key) { shot_controls[key].textContent = shot_t(key); });
@@ -119,7 +119,9 @@ function shot_configure(detail) {
 	shot_locale = detail.locale === 'pt-BR' ? 'pt-BR' : 'en';
 	shot_apply_locale();
 	var previousLevel = shot.selectedLevel;
+	var previousMap = shot_map_variant;
 	if (Number.isInteger(detail.level)) shot.selectedLevel = Math.max(1, Math.min(3, detail.level));
+	if (Number.isInteger(detail.map)) shot_map_variant = Math.max(0, Math.min(2, detail.map));
 	var colors = detail.colors || {};
 	var names = ['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'ambient'];
 	for (var i = 0; i < names.length; i++) {
@@ -134,7 +136,7 @@ function shot_configure(detail) {
 	shot_palette.red = shot_color(colors.red) || shot_palette.red;
 	if (!shot.active && !shot.waiting) shot_start.textContent = shot_t('deploy', { level: shot.selectedLevel });
 	shot_start.disabled = (!shot.ready && !shot.loadingFailed) || shot.waiting;
-	if (shot.ready && !shot.active && !shot.waiting && previousLevel !== shot.selectedLevel) shot_prepare_preview(shot.selectedLevel);
+	if (shot.ready && !shot.active && !shot.waiting && (previousLevel !== shot.selectedLevel || previousMap !== shot_map_variant)) shot_prepare_preview(shot.selectedLevel);
 }
 
 function shot_set_loading(show, title, step, progress) {
@@ -156,7 +158,7 @@ function shot_show_overlay(heading, message, button) {
 function shot_fail(message) {
 	shot.waiting = false;
 	if (!shot.ready) shot.loadingFailed = true;
-	shot_show_overlay(shot_t('game'), message, shot_t('tryAgain'));
+	shot_show_overlay(shot_t('errorTitle'), message, shot_t('tryAgain'));
 	shot_send('error', { message: message });
 }
 

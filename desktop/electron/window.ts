@@ -61,6 +61,8 @@ export async function createMainWindow(database: DesktopDatabase, requestQuit: (
   window.webContents.on('will-navigate', event => event.preventDefault());
   window.on('maximize', () => window.webContents.send('window:maximized', true));
   window.on('unmaximize', () => window.webContents.send('window:maximized', false));
+  window.on('enter-full-screen', () => window.webContents.send('window:fullscreen', true));
+  window.on('leave-full-screen', () => window.webContents.send('window:fullscreen', false));
   window.on('close', event => {
     if (shouldQuit() || forceClose) return;
     event.preventDefault();

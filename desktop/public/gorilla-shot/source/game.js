@@ -21,6 +21,8 @@ var udef, // global undefined
 	cpus_rebooted = 0,
 
 	current_level = 0,
+	shot_map_variant = 0,
+	level_request = 0,
 	entity_player,
 	entities = [],
 	entities_to_kill = [];
@@ -55,29 +57,80 @@ function next_level(callback) {
 }
 
 function load_level(id, callback) {
-	random_seed(0xBADC0DE1 + id);
+	var request = ++level_request;
+	random_seed(0xBADC0DE1 + id + shot_map_variant * 0x10001);
+	if (shot_map_variant > 0) {
+		build_level(id, generated_level(id, shot_map_variant), callback);
+		return;
+	}
 	load_image('l'+id, function(){
+		if (request !== level_request) return;
+		var pixels = _document.createElement('canvas');
+		pixels.width = pixels.height = level_width;
+		var context = pixels.getContext('2d');
+		context.drawImage(this, 0, 0);
+		var image_data = context.getImageData(0, 0, level_width, level_height).data;
+		var colors = new Uint16Array(level_width * level_height);
+		for (var index = 0; index < colors.length; index++) {
+			colors[index] = ((image_data[index*4]>>4) << 8) + ((image_data[index*4+1]>>4) << 4) + (image_data[index*4+2]>>4);
+		}
+		build_level(id, colors, callback);
+	});
+}
+
+// Two connected room layouts supplement each original sector map. The same
+// layout choice carries across sectors, while room sizes vary with the sector.
+function generated_level(id, variant) {
+	var pixels = new Uint16Array(level_width * level_height);
+	var rooms = variant === 1
+		? [[11,11],[31,11],[51,11],[11,31],[31,31],[51,31],[11,51],[31,51],[51,51]]
+		: [[12,12],[31,12],[51,12],[51,31],[51,51],[31,51],[12,51],[12,31],[31,31]];
+	function floor(x, y) { if (x > 1 && y > 1 && x < 62 && y < 62) pixels[y * level_width + x] = 0xfff; }
+	function corridor(a, b) {
+		for (var x = Math.min(a[0], b[0]); x <= Math.max(a[0], b[0]); x++) for (var dy = -1; dy <= 1; dy++) floor(x, a[1] + dy);
+		for (var y = Math.min(a[1], b[1]); y <= Math.max(a[1], b[1]); y++) for (var dx = -1; dx <= 1; dx++) floor(b[0] + dx, y);
+	}
+	for (var i = 0; i < rooms.length; i++) {
+		var room = rooms[i];
+		var radius = 4 + (id + i) % 3;
+		for (var ry = -radius; ry <= radius; ry++) for (var rx = -radius; rx <= radius; rx++) floor(room[0] + rx, room[1] + ry);
+	}
+	if (variant === 1) {
+		for (var row = 0; row < 3; row++) for (var col = 0; col < 2; col++) corridor(rooms[row * 3 + col], rooms[row * 3 + col + 1]);
+		for (var col = 0; col < 3; col++) for (var row = 0; row < 2; row++) corridor(rooms[row * 3 + col], rooms[(row + 1) * 3 + col]);
+	} else {
+		for (var ring = 0; ring < 8; ring++) corridor(rooms[ring], rooms[(ring + 1) % 8]);
+		corridor(rooms[1], rooms[8]);
+		corridor(rooms[8], rooms[5]);
+	}
+	var floors = pixels.slice();
+	for (var y = 1; y < 63; y++) for (var x = 1; x < 63; x++) {
+		var index = y * level_width + x;
+		if (floors[index]) continue;
+		for (var oy = -1; oy <= 1; oy++) for (var ox = -1; ox <= 1; ox++) {
+			if (floors[(y + oy) * level_width + x + ox]) pixels[index] = 0x888;
+		}
+	}
+	var player_room = variant === 1 ? 4 : 0;
+	for (var i = 0; i < rooms.length; i++) {
+		var point = rooms[i];
+		pixels[point[1] * level_width + point[0]] = i === player_room ? 0x0f0 : (i === 2 || i === 6) ? 0xf00 : 0x00f;
+	}
+	return pixels;
+}
+
+function build_level(id, colors, callback) {
 		entities = [];
+		level_data.fill(0);
 		num_verts = 0;
 		num_lights = 0;
 
 		cpus_total = 0;
 		cpus_rebooted = 0;
 
-		_temp = _document.createElement('canvas');
-		_temp.width = _temp.height = level_width; // assume square levels
-		_temp = _temp.getContext('2d')
-		_temp.drawImage(this, 0, 0);
-		_temp =_temp.getImageData(0, 0, level_width, level_height).data;
-
 		for (var y = 0, index = 0; y < level_height; y++) {
 			for (var x = 0; x < level_width; x++, index++) {
-
-				// reduce to 12 bit color to accurately match
-				var color_key = 
-					((_temp[index*4]>>4) << 8) + 
-					((_temp[index*4+1]>>4) << 4) + 
-					(_temp[index*4+2]>>4);
+				var color_key = colors[index];
 
 				if (color_key !== 0) {
 					var tile = level_data[index] =
@@ -145,7 +198,6 @@ function load_level(id, callback) {
 			(cpus_total)+' SYSTEMS FOUND'
 		);
 		callback && callback();
-	});
 }
 
 function reload_level() {
@@ -175,8 +227,9 @@ _document.onkeyup = function(ev) {
 }
 
 _document.onmousemove = function(ev) {
-	mouse_x = (ev.clientX / c.clientWidth) * c.width;
-	mouse_y = (ev.clientY / c.clientHeight) * c.height;
+	var bounds = c.getBoundingClientRect();
+	mouse_x = ((ev.clientX - bounds.left) / bounds.width) * c.width;
+	mouse_y = ((ev.clientY - bounds.top) / bounds.height) * c.height;
 }
 
 _document.onmousedown = function(ev) {

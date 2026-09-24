@@ -44,6 +44,11 @@ export function registerIpc(services: Services) {
   handle('window:maximize', () => services.window.isMaximized() ? services.window.unmaximize() : services.window.maximize());
   handle('window:close', () => services.requestClose());
   handle('window:is-maximized', () => services.window.isMaximized());
+  handle('window:is-fullscreen', () => services.window.isFullScreen());
+  handle<[boolean]>('window:set-fullscreen', (_event, enabled) => {
+    services.window.setFullScreen(enabled === true);
+    return services.window.isFullScreen();
+  });
 
   handle<[string, { mode: 'quick' | 'full'; workspace: WorkspaceMode }]>('scans:start', (_event, url, options) => services.scans.start(String(url), { mode: options?.mode === 'full' ? 'full' : 'quick', workspace: options?.workspace === 'cloud' ? 'cloud' : 'local' }));
   handle<[string]>('scans:cancel', (_event, id) => services.scans.cancel(uuid(id)));

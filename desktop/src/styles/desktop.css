@@ -316,12 +316,10 @@ main { min-width: 0; min-height: 0; overflow: auto; background: var(--bg-seconda
 
 /* Gorilla Shot uses the same surfaces and controls as the rest of the desktop app. */
 .shot-shell { overflow: hidden; margin-top: 18px; background: var(--bg-primary); border: 1px solid var(--border-secondary); border-radius: var(--radius-lg); }
-.shot-toolbar, .shot-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 17px; background: var(--bg-primary); }
+.shot-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 17px; background: var(--bg-primary); }
 .shot-toolbar { border-bottom: 1px solid var(--border-secondary); }
-.shot-brand { display: flex; align-items: center; gap: 9px; color: var(--content-secondary); }
-.shot-brand > div { display: grid; gap: 2px; }
-.shot-brand strong { color: var(--content-headings); font-size: 14px; }
-.shot-brand > div > span { color: var(--content-disabled); font-size: 11px; }
+.shot-map-pickers { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.shot-map-pickers .gp-dropdown { width: clamp(116px, 12vw, 170px); }
 .shot-toolbar-actions { display: flex; align-items: center; gap: 8px; }
 .shot-volume-control { display: flex; align-items: center; gap: 8px; min-height: 36px; }
 .shot-volume-control input[type="range"] { width: clamp(68px, 8vw, 104px); height: 4px; margin: 0; accent-color: var(--accent-vibrant); cursor: pointer; }
@@ -346,11 +344,6 @@ main { min-width: 0; min-height: 0; overflow: auto; background: var(--bg-seconda
 .shot-frame-loading strong { color: var(--content-headings); font-size: 13px; }
 .shot-frame-loading small { max-width: 360px; color: var(--content-secondary); font-size: 11px; line-height: 1.45; }
 @keyframes shot-loading-spin { to { transform: rotate(360deg); } }
-.shot-footer { align-items: flex-end; border-top: 1px solid var(--border-secondary); }
-.shot-instructions { display: flex; flex-wrap: wrap; gap: 15px; padding-bottom: 8px; }
-.shot-instructions > span { display: inline-flex; align-items: center; gap: 6px; color: var(--content-secondary); font-size: 11px; }
-.shot-instructions kbd { min-width: 23px; padding: 0; color: var(--accent-vibrant); background: transparent; border: 0; font: 600 10px var(--font-mono); text-align: center; }
-.shot-sector-picker { display: grid; grid-template-columns: auto minmax(130px, 180px); align-items: center; gap: 9px; color: var(--content-secondary); font-size: 12px; }
 .shot-progress { margin-top: 20px; padding: 0 18px 18px; }
 .shot-progress-heading { padding: 18px 0 14px; }
 .shot-progress-heading h2 { margin: 4px 0 0; font-size: 18px; }
@@ -367,11 +360,14 @@ main { min-width: 0; min-height: 0; overflow: auto; background: var(--bg-seconda
 .shot-recent li > span.cleared { color: var(--content-success); }
 .shot-recent li > strong { color: var(--content-primary); text-align: right; }
 .shot-error { margin-top: 14px; padding: 10px 12px; color: var(--promotion-vibrant); background: var(--tint-promotion); border: 1px solid var(--promotion-vibrant); border-radius: var(--radius-md); font-size: 12px; }
-.shot-shell:fullscreen { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; width: 100vw; height: 100vh; margin: 0; border: 0; border-radius: 0; background: var(--bg-secondary); }
-.shot-shell:fullscreen .shot-frame-wrap { position: relative; min-height: 0; max-height: none; height: 100%; aspect-ratio: auto; }
-.shot-shell:fullscreen .shot-frame-wrap iframe { height: 100%; }
+.shot-shell.is-fullscreen { position: fixed; inset: 0; z-index: 100; display: grid; grid-template-rows: auto minmax(0, 1fr); width: 100vw; height: 100vh; margin: 0; border: 0; border-radius: 0; background: var(--bg-secondary); }
+.shot-shell.is-fullscreen.has-run { grid-template-rows: auto auto minmax(0, 1fr); }
+.shot-shell.is-fullscreen .shot-toolbar { min-height: 56px; }
+.shot-shell.is-fullscreen .shot-hud { position: relative; z-index: 1; }
+.shot-shell.is-fullscreen .shot-frame-wrap { position: relative; min-height: 0; max-height: none; height: 100%; aspect-ratio: auto; }
+.shot-shell.is-fullscreen .shot-frame-wrap iframe { height: 100%; }
 @media (max-width: 1120px) { .shot-hud { grid-template-columns: repeat(3, minmax(0, 1fr)); } .shot-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 760px) { .shot-toolbar, .shot-footer { align-items: flex-start; flex-direction: column; } .shot-toolbar-actions { width: 100%; flex-wrap: wrap; } .shot-sync-status { flex: 1; } .shot-volume-control { order: 3; } .shot-footer { gap: 12px; } .shot-instructions { gap: 9px; } .shot-sector-picker { width: 100%; grid-template-columns: 1fr minmax(130px, 180px); } .shot-fullscreen-btn span { display: none; } .shot-recent li { grid-template-columns: 75px 1fr 65px 80px; } }
+@media (max-width: 760px) { .shot-toolbar { align-items: flex-start; flex-direction: column; } .shot-toolbar-actions { width: 100%; flex-wrap: wrap; } .shot-sync-status { flex: 1; } .shot-volume-control { order: 3; } .shot-fullscreen-btn span { display: none; } .shot-recent li { grid-template-columns: 75px 1fr 65px 80px; } }
 
 @media (max-width: 1120px) {
   .titlebar-status > span:last-child { display: none; }

@@ -156,6 +156,9 @@ export interface DesktopAPI {
     close(): Promise<void>;
     isMaximized(): Promise<boolean>;
     onMaximized(callback: (maximized: boolean) => void): () => void;
+    isFullscreen(): Promise<boolean>;
+    setFullscreen(enabled: boolean): Promise<boolean>;
+    onFullscreen(callback: (fullscreen: boolean) => void): () => void;
   };
   scans: {
     start(url: string, options: StartPunchOptions): Promise<DesktopScan>;

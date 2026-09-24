@@ -22,6 +22,9 @@ const api: DesktopAPI = {
     close: () => ipcRenderer.invoke('window:close'),
     isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
     onMaximized: callback => listen('window:maximized', callback),
+    isFullscreen: () => ipcRenderer.invoke('window:is-fullscreen'),
+    setFullscreen: enabled => ipcRenderer.invoke('window:set-fullscreen', enabled),
+    onFullscreen: callback => listen('window:fullscreen', callback),
   },
   scans: {
     start: (url, options) => ipcRenderer.invoke('scans:start', url, options),
