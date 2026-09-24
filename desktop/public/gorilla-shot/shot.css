@@ -31,6 +31,7 @@ body { background: var(--shot-bg); color: var(--shot-text); font-family: 'Segoe 
 .shot-overlay button { min-height: 46px; width: 100%; padding: 0 16px; border: 0; border-radius: 5px; background: var(--shot-purple); box-shadow: 0 3px 0 var(--shot-button-lip); color: #fff; font: 700 14px 'Segoe UI Variable', 'Segoe UI', Arial, sans-serif; cursor: pointer; transition: filter .15s ease, transform .15s ease, box-shadow .15s ease; }
 .shot-overlay button:hover { filter: brightness(1.08); }
 .shot-overlay button:focus-visible { outline: 2px solid var(--shot-text); outline-offset: 3px; }
+.shot-overlay button:focus-visible:hover { outline: none; outline-offset: 0; }
 .shot-overlay button:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--shot-button-lip); }
 .shot-overlay button:disabled { opacity: .55; cursor: wait; }
 .shot-loading-panel { display: grid; justify-items: center; gap: 12px; text-align: center; }
