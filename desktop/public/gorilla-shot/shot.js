@@ -370,10 +370,10 @@ game_tick = function() {
 	}
 	entities = entities.filter(function(entity) { return entities_to_kill.indexOf(entity) === -1; });
 	entities_to_kill = [];
-		if (now - shot.lastPublished >= 250) {
+	if (now - shot.lastPublished >= 250) {
 		shot.lastPublished = now;
 		shot_publish('state');
-		}
+	}
 };
 
 shot_start.addEventListener('click', function() {
@@ -384,7 +384,7 @@ shot_start.addEventListener('click', function() {
 	shot_start.disabled = true;
 	shot_overlay.hidden = true;
 	shot_set_loading(true, shot_t('loadingTitle'), shot_t('preparing'), 85);
-	if (audio_ctx && shot.volume > 0 && !shot.muted) void audio_ctx.resume();
+	if (audio_ctx) void audio_ctx.resume();
 	if (!shot.audioStarted) { shot.audioStarted = true; audio_init(function() {}); }
 	shot_send('start-request', { level: shot.selectedLevel });
 });
