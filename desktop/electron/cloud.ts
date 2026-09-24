@@ -1,6 +1,6 @@
 import { safeStorage } from 'electron';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
-import type { DesktopReport, DesktopScan, CloudCredentials, CloudState, ShotDeviceSummary, SignUpCredentials } from '../shared/types';
+import type { DesktopReport, DesktopScan, CloudCredentials, CloudState, ShotDeviceSummary, ShotRun, SignUpCredentials } from '../shared/types';
 import type { DesktopDatabase } from './database';
 import { readShotSummary } from '../shared/shot-progress';
 
@@ -227,6 +227,34 @@ export class CloudService {
     const latest = previous && previous.updatedAt > summary.updatedAt ? previous : summary;
     await this.writeShotSummary(client, data.user.id, latest);
     return this.loadShotSummaries(client, data.user.id, data.user.user_metadata);
+  }
+
+  async saveShotRuns(deviceId: string, runs: ShotRun[]) {
+    const client = await this.authenticatedClient();
+    const { data, error: userError } = await client.auth.getUser();
+    if (userError || !data.user) throw new Error('Sign in to sync Gorilla Shot run history.');
+    const records = runs.filter(run => run.status !== 'active' && run.finishedAt).map(run => ({
+      owner_id: data.user.id,
+      device_id: deviceId,
+      run_id: run.id,
+      started_at: run.startedAt,
+      updated_at: run.updatedAt,
+      finished_at: run.finishedAt,
+      status: run.status,
+      starting_level: run.startingLevel,
+      level_reached: run.levelReached,
+      duration_ms: run.durationMs,
+      score: run.score,
+      kills: run.kills,
+      systems: run.systems,
+    }));
+    for (let start = 0; start < records.length; start += 200) {
+      const { error } = await client.from('gorilla_shot_runs').upsert(records.slice(start, start + 200), { onConflict: 'owner_id,device_id,run_id' });
+      if (error) {
+        if (error.code === '42P01' || error.code === 'PGRST205') throw new Error('Gorilla Shot run history cloud storage is not set up yet. Apply migration 202609240002_gorilla_shot_runs.sql.');
+        throw new Error(`Gorilla Shot run history sync failed: ${safeCloudError(error.message)}`);
+      }
+    }
   }
 
   private async loadShotSummaries(client: SupabaseClient, userId: string, metadata: Record<string, unknown> | null): Promise<ShotDeviceSummary[]> {
