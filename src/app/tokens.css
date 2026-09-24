@@ -10,6 +10,8 @@ html[data-theme='dark'] {
   --bg-overlay: #393442;
   --arcade-bg: #24202b;
   --arcade-ink: #957cdf;
+  --arcade-text: #f6f2ff;
+  --terminal-text: #f1f0f5;
 
   --content-headings: #FFFFFF;
   --content-primary: #E7E5EA;
