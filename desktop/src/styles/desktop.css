@@ -22,7 +22,7 @@ button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px
 .gp-dropdown-option:hover, .gp-dropdown-option:focus-visible { color: var(--content-headings); background: var(--tint-accent); outline: 0; }
 .gp-dropdown-option[aria-selected="true"] { color: var(--content-headings); background: var(--tint-accent); }
 .gp-dropdown-option svg { flex: 0 0 auto; color: var(--content-accent); }
-.desktop-app { height: 100%; background: var(--bg-secondary); }
+.desktop-app { display: grid; grid-template-rows: 48px minmax(0, 1fr); height: 100%; min-height: 0; overflow: hidden; background: var(--bg-secondary); }
 .no-drag, .no-drag * { app-region: no-drag; -webkit-app-region: no-drag; }
 .muted { color: var(--content-disabled); }
 .spin { animation: spin 900ms linear infinite; }
@@ -49,7 +49,7 @@ button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px
 .window-controls button:hover { color: var(--content-headings); background: var(--tint-neutral); }
 .window-controls .window-close:hover { color: var(--content-on-vibrant); background: var(--danger-vibrant); }
 
-.desktop-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); height: calc(100% - 48px); }
+.desktop-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); height: auto; min-height: 0; overflow: hidden; }
 .sidebar { display: flex; flex-direction: column; min-height: 0; padding: 18px 12px 14px; background: var(--bg-primary); border-right: 1px solid var(--border-primary); }
 .sidebar-toggle { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 30px; margin-bottom: 10px; padding: 0 10px; color: var(--content-secondary); background: transparent; border: 0; border-radius: var(--radius-md); font-size: 12px; font-weight: 600; text-align: left; }
 .sidebar-toggle:hover { color: var(--content-headings); background: var(--tint-neutral); }
@@ -79,7 +79,7 @@ button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px
 .shortcut-hint { display: flex; align-items: center; gap: 4px; margin-top: 14px; padding: 0 3px; color: var(--content-disabled); font-size: 12px; }
 .shortcut-hint kbd { min-width: 20px; padding: 2px 4px; color: var(--content-secondary); background: var(--bg-tertiary); border: 1px solid var(--border-neutral-muted); border-radius: 3px; font-size: 12px; text-align: center; }
 .shortcut-hint span { margin-left: 4px; }
-main { min-width: 0; overflow: auto; background: var(--bg-secondary); }
+main { min-width: 0; min-height: 0; overflow: auto; background: var(--bg-secondary); }
 .view { width: min(1180px, 100%); margin: 0 auto; padding: 34px 38px 60px; }
 .eyebrow { display: block; color: var(--content-accent); font-size: 12px; font-weight: 700; letter-spacing: .12em; }
 .page-heading { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }

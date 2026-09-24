@@ -81,7 +81,16 @@ export function Settings({ settings, cloud, pendingCount, onSyncPending, onSetti
 
   const chooseCloud = () => {
     void onSettings({ workspace: 'cloud', autoSync: true });
-    if (!cloud.authenticated) document.getElementById('cloud-account')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!cloud.authenticated) {
+      const account = document.getElementById('cloud-account');
+      const pane = account?.closest('main');
+      if (account && pane) {
+        const paneBounds = pane.getBoundingClientRect();
+        const accountBounds = account.getBoundingClientRect();
+        const top = pane.scrollTop + accountBounds.top - paneBounds.top - (pane.clientHeight - account.clientHeight) / 2;
+        pane.scrollTo({ top: Math.max(0, Math.min(top, pane.scrollHeight - pane.clientHeight)), behavior: 'smooth' });
+      }
+    }
   };
 
   const checkForUpdates = async () => {
