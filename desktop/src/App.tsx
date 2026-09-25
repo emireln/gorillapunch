@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, WarningCircle, X } from '@phosphor-icons/react';
 import type { CloudState, DesktopReport, DesktopScan, DesktopSettings, LocalServer, WatchProject, WorkspaceMode } from '../shared/types';
 import { TitleBar } from './components/TitleBar';
@@ -9,6 +9,7 @@ import { Watchers } from './views/Watchers';
 import { Settings } from './views/Settings';
 import { ReportView } from './views/Report';
 import { Arcade } from './views/Arcade';
+import { GorillaAI } from './views/GorillaAI';
 import { errorMessage, type ScanItem } from './utils';
 import { useDesktopI18n } from './i18n';
 import { Tooltip } from './components/Tooltip';
@@ -30,6 +31,9 @@ export function App() {
   const [online, setOnline] = useState(navigator.onLine);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('gp-sidebar-collapsed') === 'true');
+  const activeView = useRef(view);
+
+  useEffect(() => { activeView.current = view; }, [view]);
 
   const notify = useCallback((message: string, tone: 'success' | 'error' = 'success') => {
     const id = Date.now() + Math.random();
@@ -55,7 +59,7 @@ export function App() {
     const progress = window.gorillaPunch.scans.onProgress(({ scan }) => setLocalHistory(current => upsert(current, scan)));
     const complete = window.gorillaPunch.scans.onComplete(completed => {
       setLocalHistory(current => upsert(current, completed.scan));
-      setReport(completed); setReportSource('local'); setView('report');
+      setReport(completed); setReportSource('local'); if (activeView.current !== 'ai') setView('report');
       if (completed.scan.synced_at) void refreshCloud();
       if (completed.scan.sync_error) notify(completed.scan.sync_error, 'error');
     });
@@ -159,6 +163,7 @@ export function App() {
       {view === 'dashboard' && <Dashboard items={items} localHistory={localHistory} workspace={settings.workspace} autoSync={settings.autoSync} cloudConnected={cloud.authenticated} defaultMode={settings.defaultMode} servers={servers} onPunch={startPunch} onOpen={item => void openReport(item)} onHistory={() => setView('history')}/>}
       {view === 'history' && <History items={items} onOpen={item => void openReport(item)}/>}
       {view === 'watchers' && <Watchers watchers={watchers} onAdd={addWatcher} onUpdate={updateWatcher} onRemove={removeWatcher}/>}
+      {view === 'ai' && <GorillaAI notify={notify} onSettings={() => setView('settings')}/>}
       {view === 'arcade' && <Arcade workspace={settings.workspace} cloudConnected={cloud.authenticated} online={online}/>}
       {view === 'settings' && <Settings settings={settings} cloud={cloud} pendingCount={localHistory.filter(scan => scan.storage === 'cloud' && scan.status === 'completed' && !scan.synced_at).length} onSyncPending={syncPending} onSettings={updateSettings} onAvatar={setCloud} onCloud={state => { setCloud(state); if (state.authenticated) { void updateSettings({ workspace: 'cloud', autoSync: true }); void refreshCloud(state); } else { setCloudHistory([]); void updateSettings({ workspace: 'local' }); } }} notify={notify}/>}
       {view === 'report' && (loadingReport ? <div className="view loading-view">{t('app.loadingReport')}</div> : report ? <ReportView key={report.scan.id} report={report} source={reportSource} canSync={cloud.authenticated && online} onBack={() => setView('history')} onDelete={deleteReport} onSync={syncReport} notify={notify}/> : <div className="view empty-panel">{t('app.reportUnavailable')}</div>)}

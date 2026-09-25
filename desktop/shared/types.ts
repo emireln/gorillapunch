@@ -152,6 +152,73 @@ export interface SignUpCredentials extends CloudCredentials {
 
 export type ExportFormat = 'pdf' | 'json' | 'csv' | 'markdown';
 
+export const aiProviders = ['openai', 'gemini', 'anthropic', 'deepseek', 'glm', 'mimo', 'openrouter', 'ollama'] as const;
+export type AIProvider = typeof aiProviders[number];
+
+export interface AIProviderModel {
+  id: string;
+  contextWindow?: number;
+}
+
+export interface AIProviderState {
+  provider: AIProvider;
+  configured: boolean;
+  model: string;
+  endpoint?: string;
+  keyHint?: string;
+  contextWindow?: number;
+  models: AIProviderModel[];
+}
+
+export interface AIImageAttachment {
+  name: string;
+  mimeType: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif';
+  data: string;
+}
+
+export interface AIUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  contextWindow?: number;
+}
+
+export interface AIChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+  images?: AIImageAttachment[];
+  usage?: AIUsage;
+}
+
+export interface AIChat {
+  id: string;
+  title: string;
+  provider: AIProvider;
+  model: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: AIChatMessage[];
+}
+
+export interface AIActivity {
+  requestId: string;
+  chatId: string;
+  phase: 'audit' | 'thinking' | 'answer' | 'complete' | 'error';
+  detail?: string;
+  chunk?: string;
+  usage?: AIUsage;
+}
+
+export interface AIConfigureProvider {
+  provider: AIProvider;
+  apiKey: string;
+  model: string;
+  endpoint?: string;
+  contextWindow?: number;
+}
+
 export interface DesktopAPI {
   window: {
     minimize(): Promise<void>;
@@ -202,6 +269,19 @@ export interface DesktopAPI {
     export(scanId: string, source: WorkspaceMode, format: ExportFormat): Promise<string | null>;
     copyPrompt(scanId: string, source: WorkspaceMode): Promise<number>;
     inspect(url: string, selector?: string): Promise<void>;
+  };
+  ai: {
+    providers(): Promise<AIProviderState[]>;
+    models(provider: AIProvider, apiKey?: string, endpoint?: string): Promise<AIProviderModel[]>;
+    configure(input: AIConfigureProvider): Promise<AIProviderState[]>;
+    disconnect(provider: AIProvider): Promise<AIProviderState[]>;
+    chats(): Promise<AIChat[]>;
+    saveChat(chat: AIChat): Promise<AIChat>;
+    deleteChat(chatId: string): Promise<void>;
+    exportChats(): Promise<string | null>;
+    importChats(): Promise<number>;
+    send(requestId: string, chatId: string, message: AIChatMessage): Promise<AIChat>;
+    onActivity(callback: (activity: AIActivity) => void): () => void;
   };
   system: {
     openExternal(url: string): Promise<void>;

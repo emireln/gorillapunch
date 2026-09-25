@@ -1,11 +1,12 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
-import type { CloudCredentials, DesktopSettings, DesktopUpdateState, IpcActionResult, SignUpCredentials, WatchProject, WorkspaceMode, ExportFormat, ShotGameMode, ShotRunSnapshot } from '../shared/types';
+import type { AIChat, AIChatMessage, AIConfigureProvider, AIProvider, CloudCredentials, DesktopSettings, DesktopUpdateState, IpcActionResult, SignUpCredentials, WatchProject, WorkspaceMode, ExportFormat, ShotGameMode, ShotRunSnapshot } from '../shared/types';
 import type { DesktopDatabase } from './database';
 import { sanitizeSettings } from './database';
 import type { CloudService } from './cloud';
 import type { ScanManager } from './scanner';
 import type { WatcherService } from './watchers';
 import type { ShotService } from './shot';
+import type { GorillaAIService } from './gorilla-ai';
 import { detectLocalServers } from './servers';
 import { exportReport } from './exports';
 import { openInspector } from './inspector';
@@ -16,6 +17,7 @@ interface Services {
   database: DesktopDatabase;
   cloud: CloudService;
   shot: ShotService;
+  ai: GorillaAIService;
   scans: ScanManager;
   watchers: WatcherService;
   requestClose(): void;
@@ -102,6 +104,18 @@ export function registerIpc(services: Services) {
     clipboard.writeText(buildFixPrompt(report.scan, findings, 'en', findings.length));
     return actionableFindings(findings, findings.length).length;
   });
+  handle('ai:providers', () => services.ai.providerStates());
+  handle<[AIProvider, string | undefined, string | undefined]>('ai:models', (_event, provider, key, endpoint) => services.ai.models(provider, key, endpoint));
+  handle<[AIConfigureProvider]>('ai:configure', (_event, input) => services.ai.configure(input));
+  handle<[AIProvider]>('ai:disconnect', (_event, provider) => services.ai.disconnect(provider));
+  handle('ai:chats', () => services.ai.chats());
+  handle<[AIChat]>('ai:save-chat', (_event, chat) => services.ai.saveChat(chat));
+  handle<[string]>('ai:delete-chat', (_event, id) => services.ai.deleteChat(id));
+  handle('ai:export-chats', () => services.ai.exportChats(services.window));
+  handle('ai:import-chats', () => services.ai.importChats(services.window));
+  handle<[string, string, AIChatMessage]>('ai:send', (_event, requestId, chatId, message) => services.ai.send(requestId, chatId, message, activity => {
+    if (!services.window.isDestroyed()) services.window.webContents.send('ai:activity', activity);
+  }));
   handle<[string, string | undefined]>('reports:inspect', (_event, url, selector) => openInspector(services.window, String(url), selector ? String(selector) : undefined));
   handle<[string]>('system:open-external', async (_event, value) => {
     const url = new URL(String(value));

@@ -1,15 +1,16 @@
-import { Binoculars, CaretDoubleLeft, CaretDoubleRight, ClockCounterClockwise, Gear, House, HardDrives, CloudArrowUp, GameController, type Icon } from '@phosphor-icons/react';
+import { Binoculars, Brain, CaretDoubleLeft, CaretDoubleRight, ClockCounterClockwise, Gear, House, HardDrives, CloudArrowUp, GameController, type Icon } from '@phosphor-icons/react';
 import type { CloudState, WorkspaceMode } from '../../shared/types';
 import { Tooltip } from './Tooltip';
 import { useDesktopI18n } from '../i18n';
 
-export type View = 'dashboard' | 'history' | 'watchers' | 'settings' | 'report' | 'arcade';
+export type View = 'dashboard' | 'history' | 'watchers' | 'ai' | 'settings' | 'report' | 'arcade';
 export function Sidebar({ view, setView, workspace, cloud, collapsed, onToggle }: { view: View; setView(view: View): void; workspace: WorkspaceMode; cloud: CloudState | null; collapsed: boolean; onToggle(): void }) {
   const { t } = useDesktopI18n();
   const items: { id: View; label: string; icon: Icon }[] = [
     { id: 'dashboard', label: t('nav.overview'), icon: House },
     { id: 'history', label: t('nav.history'), icon: ClockCounterClockwise },
     { id: 'watchers', label: t('nav.monitor'), icon: Binoculars },
+    { id: 'ai', label: t('nav.ai'), icon: Brain },
     { id: 'settings', label: t('nav.settings'), icon: Gear },
   ];
   const toggle = <button className="sidebar-toggle" aria-label={collapsed ? t('nav.expand') : t('nav.collapse')} onClick={onToggle}>{collapsed ? <CaretDoubleRight size={18}/> : <><span>{t('nav.navigation')}</span><CaretDoubleLeft size={18}/></>}</button>;

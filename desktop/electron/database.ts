@@ -65,6 +65,13 @@ export class DesktopDatabase {
       );
       CREATE INDEX IF NOT EXISTS desktop_screenshots_scan ON desktop_screenshots(scan_id);
       CREATE TABLE IF NOT EXISTS desktop_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS desktop_ai_chats (
+        id TEXT PRIMARY KEY,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS desktop_ai_chats_updated ON desktop_ai_chats(updated_at DESC);
       CREATE TABLE IF NOT EXISTS desktop_watchers (
         id TEXT PRIMARY KEY,
         body TEXT NOT NULL CHECK(json_valid(body))
@@ -206,6 +213,25 @@ export class DesktopDatabase {
   async removeValue(key: string) {
     await this.ready;
     await this.client.execute({ sql: 'DELETE FROM desktop_settings WHERE key=?', args: [key] });
+  }
+
+  async aiChatBodies() {
+    await this.ready;
+    const result = await this.client.execute('SELECT id,body FROM desktop_ai_chats ORDER BY updated_at DESC');
+    return result.rows.map(row => ({ id: String(row.id), body: String(row.body) }));
+  }
+
+  async saveAIChatBody(id: string, body: string, createdAt: string, updatedAt: string) {
+    await this.ready;
+    await this.client.execute({
+      sql: 'INSERT INTO desktop_ai_chats(id,body,created_at,updated_at) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,updated_at=excluded.updated_at',
+      args: [id, body, createdAt, updatedAt],
+    });
+  }
+
+  async removeAIChat(id: string) {
+    await this.ready;
+    await this.client.execute({ sql: 'DELETE FROM desktop_ai_chats WHERE id=?', args: [id] });
   }
 
   async watchers() {

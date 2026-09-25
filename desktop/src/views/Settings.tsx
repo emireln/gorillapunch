@@ -3,6 +3,7 @@ import { ArrowsClockwise, Cloud, CloudArrowUp, Desktop, HardDrives, LockKey, Moo
 import type { CloudState, DesktopLocalePreference, DesktopSettings } from '../../shared/types';
 import { Dropdown } from '../components/Dropdown';
 import { useDesktopI18n, type DesktopMessage } from '../i18n';
+import { AIProviderSettings } from './AIProviderSettings';
 
 export function Settings({ settings, cloud, pendingCount, onSyncPending, onSettings, onCloud, onAvatar, notify }: {
   settings: DesktopSettings;
@@ -156,6 +157,8 @@ export function Settings({ settings, cloud, pendingCount, onSyncPending, onSetti
         <details className="settings-card advanced-settings"><summary>{t('settings.moreOptions')}</summary><div className="fields-grid"><label><span>{t('settings.pages')}</span><input type="number" min={1} max={30} value={settings.maxPages} onChange={event => void onSettings({ maxPages: Number(event.target.value) })}/></label><label><span>{t('settings.depth')}</span><input type="number" min={0} max={4} value={settings.maxDepth} onChange={event => void onSettings({ maxDepth: Number(event.target.value) })}/></label><label><span>{t('settings.timeLimit')}</span><input type="number" min={30} max={600} value={settings.maxDurationSeconds} onChange={event => void onSettings({ maxDurationSeconds: Number(event.target.value) })}/></label><label><span>{t('settings.concurrency')}</span><Dropdown<number> ariaLabel={t('settings.concurrency')} value={settings.concurrency} onChange={value => void onSettings({ concurrency: value })} options={[{ value: 1, label: t('settings.recommended') }, { value: 2, label: '2' }, { value: 3, label: '3' }]}/></label></div></details>
       </div>
     </section>
+
+    <AIProviderSettings/>
 
     <section className="settings-section">
       <div className="settings-intro"><h2>{t('settings.preferencesTitle')}</h2><p>{t('settings.preferencesSubtitle')}</p></div>

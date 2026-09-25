@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopAPI, DesktopUpdateState, IpcActionResult } from '../shared/types';
+import type { AIActivity, AIChat, AIConfigureProvider, AIProviderModel, AIProviderState, DesktopAPI, DesktopUpdateState, IpcActionResult } from '../shared/types';
 
 const invokeAuth = async <T>(channel: string, value: unknown): Promise<T> => {
   const result = await ipcRenderer.invoke(channel, value) as IpcActionResult<T>;
@@ -62,6 +62,19 @@ const api: DesktopAPI = {
     export: (scanId, source, format) => ipcRenderer.invoke('reports:export', scanId, source, format),
     copyPrompt: (scanId, source) => ipcRenderer.invoke('reports:copy-prompt', scanId, source),
     inspect: (url, selector) => ipcRenderer.invoke('reports:inspect', url, selector),
+  },
+  ai: {
+    providers: () => ipcRenderer.invoke('ai:providers') as Promise<AIProviderState[]>,
+    models: (provider, apiKey, endpoint) => ipcRenderer.invoke('ai:models', provider, apiKey, endpoint) as Promise<AIProviderModel[]>,
+    configure: (input: AIConfigureProvider) => ipcRenderer.invoke('ai:configure', input) as Promise<AIProviderState[]>,
+    disconnect: provider => ipcRenderer.invoke('ai:disconnect', provider) as Promise<AIProviderState[]>,
+    chats: () => ipcRenderer.invoke('ai:chats') as Promise<AIChat[]>,
+    saveChat: chat => ipcRenderer.invoke('ai:save-chat', chat) as Promise<AIChat>,
+    deleteChat: chatId => ipcRenderer.invoke('ai:delete-chat', chatId),
+    exportChats: () => ipcRenderer.invoke('ai:export-chats') as Promise<string | null>,
+    importChats: () => ipcRenderer.invoke('ai:import-chats') as Promise<number>,
+    send: (requestId, chatId, message) => ipcRenderer.invoke('ai:send', requestId, chatId, message) as Promise<AIChat>,
+    onActivity: callback => listen<AIActivity>('ai:activity', callback),
   },
   system: {
     openExternal: url => ipcRenderer.invoke('system:open-external', url),
