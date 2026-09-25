@@ -76,7 +76,6 @@ export class ShotService {
     const deviceId = await this.database.shotDeviceId();
     const runs = (await this.database.shotRuns()).filter(run => run.accountId === state.userId);
     const local = summarizeShotRuns(deviceId, runs);
-    await this.cloud.saveShotRuns(deviceId, runs);
     const summaries = await this.cloud.saveShotSummary(local);
     const cache: ShotCache = { syncedAt: new Date().toISOString(), summaries };
     await this.database.setValue(`gorilla_shot_cloud_${state.userId}`, JSON.stringify(cache));

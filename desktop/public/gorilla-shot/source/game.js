@@ -228,8 +228,11 @@ _document.onkeyup = function(ev) {
 
 _document.onmousemove = function(ev) {
 	var bounds = c.getBoundingClientRect();
-	mouse_x = ((ev.clientX - bounds.left) / bounds.width) * c.width;
-	mouse_y = ((ev.clientY - bounds.top) / bounds.height) * c.height;
+	var scale = _math.max(bounds.width / c.width, bounds.height / c.height);
+	var offset_x = (bounds.width - c.width * scale) / 2;
+	var offset_y = (bounds.height - c.height * scale) / 2;
+	mouse_x = (ev.clientX - bounds.left - offset_x) / scale;
+	mouse_y = (ev.clientY - bounds.top - offset_y) / scale;
 }
 
 _document.onmousedown = function(ev) {

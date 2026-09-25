@@ -1,6 +1,6 @@
 import { safeStorage } from 'electron';
 import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js';
-import type { DesktopReport, DesktopScan, CloudCredentials, CloudState, ShotDeviceSummary, ShotRun, SignUpCredentials } from '../shared/types';
+import type { DesktopReport, DesktopScan, CloudCredentials, CloudState, ShotDeviceSummary, SignUpCredentials } from '../shared/types';
 import type { DesktopDatabase } from './database';
 import { readShotSummary } from '../shared/shot-progress';
 
@@ -56,35 +56,22 @@ export class CloudService {
   }
 
   async initialize() {
-    return this.restoreSession();
+    if (!this.client || !safeStorage.isEncryptionAvailable()) return;
+    const encrypted = await this.database.getValue(SESSION_KEY);
+    if (!encrypted) return;
+    try {
+      const parsed = JSON.parse(safeStorage.decryptString(Buffer.from(encrypted, 'base64'))) as { access_token: string; refresh_token: string };
+      const { data, error } = await this.client.auth.setSession(parsed);
+      if (error) throw error;
+      this.currentSession = data.session;
+      await this.loadAvatar();
+    } catch {
+      await this.database.removeValue(SESSION_KEY);
+    }
   }
 
   async restoreSession(): Promise<CloudState> {
-    if (!this.client || !safeStorage.isEncryptionAvailable() || this.currentSession) return this.state();
-    const encrypted = await this.database.getValue(SESSION_KEY);
-    if (!encrypted) return this.state();
-    let saved: { access_token: string; refresh_token: string };
-    try {
-      const parsed = JSON.parse(safeStorage.decryptString(Buffer.from(encrypted, 'base64'))) as Partial<typeof saved>;
-      if (typeof parsed.access_token !== 'string' || typeof parsed.refresh_token !== 'string') throw new Error('Invalid saved session.');
-      saved = { access_token: parsed.access_token, refresh_token: parsed.refresh_token };
-    } catch {
-      await this.database.removeValue(SESSION_KEY);
-      return this.state();
-    }
-    try {
-      const { data, error } = await this.client.auth.setSession(saved);
-      if (error) {
-        if (isExpiredRefreshSession(error)) await this.database.removeValue(SESSION_KEY);
-        return this.state();
-      }
-      if (!data.session) {
-        await this.database.removeValue(SESSION_KEY);
-        return this.state();
-      }
-      this.currentSession = data.session;
-      try { await this.loadAvatar(); } catch { this.avatarDataUrl = null; }
-    } catch { /* Keep the encrypted refresh token so a temporary network failure can be retried later. */ }
+    await this.initialize();
     return this.state();
   }
 
@@ -229,34 +216,6 @@ export class CloudService {
     return this.loadShotSummaries(client, data.user.id, data.user.user_metadata);
   }
 
-  async saveShotRuns(deviceId: string, runs: ShotRun[]) {
-    const client = await this.authenticatedClient();
-    const { data, error: userError } = await client.auth.getUser();
-    if (userError || !data.user) throw new Error('Sign in to sync Gorilla Shot run history.');
-    const records = runs.filter(run => run.status !== 'active' && run.finishedAt).map(run => ({
-      owner_id: data.user.id,
-      device_id: deviceId,
-      run_id: run.id,
-      started_at: run.startedAt,
-      updated_at: run.updatedAt,
-      finished_at: run.finishedAt,
-      status: run.status,
-      starting_level: run.startingLevel,
-      level_reached: run.levelReached,
-      duration_ms: run.durationMs,
-      score: run.score,
-      kills: run.kills,
-      systems: run.systems,
-    }));
-    for (let start = 0; start < records.length; start += 200) {
-      const { error } = await client.from('gorilla_shot_runs').upsert(records.slice(start, start + 200), { onConflict: 'owner_id,device_id,run_id' });
-      if (error) {
-        if (error.code === '42P01' || error.code === 'PGRST205') throw new Error('Gorilla Shot run history cloud storage is not set up yet. Apply migration 202609240002_gorilla_shot_runs.sql.');
-        throw new Error(`Gorilla Shot run history sync failed: ${safeCloudError(error.message)}`);
-      }
-    }
-  }
-
   private async loadShotSummaries(client: SupabaseClient, userId: string, metadata: Record<string, unknown> | null): Promise<ShotDeviceSummary[]> {
     const { data, error } = await client.from(SHOT_PROGRESS_TABLE)
       .select('device_id,version,updated_at,stats,recent_runs')
@@ -341,11 +300,6 @@ function readShotMetadata(metadata: Record<string, unknown> | null | undefined):
     if (summaries.length >= 64) break;
   }
   return summaries;
-}
-
-function isExpiredRefreshSession(error: { message?: string; code?: string }) {
-  return error.code === 'refresh_token_not_found'
-    || /invalid_grant|invalid refresh token|refresh token (?:not found|expired|invalid)/i.test(error.message || '');
 }
 
 function authErrorMessage(error: { message: string; status?: number }, action: 'sign-in' | 'sign-up') {

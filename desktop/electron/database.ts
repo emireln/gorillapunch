@@ -128,18 +128,7 @@ export class DesktopDatabase {
   }
 
   async pendingCloudReports(): Promise<DesktopScan[]> {
-    await this.ready;
-    const result = await this.client.execute(`
-      SELECT body FROM desktop_scans
-      WHERE status='completed'
-        AND COALESCE(json_extract(body,'$.cloud_id'),'')=''
-        AND COALESCE(json_extract(body,'$.synced_at'),'')=''
-      ORDER BY created_at ASC
-    `);
-    return result.rows.flatMap(row => {
-      try { return [JSON.parse(String(row.body)) as DesktopScan]; }
-      catch { return []; }
-    });
+    return (await this.history()).filter(scan => scan.storage === 'cloud' && scan.status === 'completed' && !scan.synced_at);
   }
 
   async saveReport(report: DesktopReport) {

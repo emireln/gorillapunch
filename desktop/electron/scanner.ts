@@ -58,8 +58,7 @@ export class ScanManager extends EventEmitter {
   async sync(scanId: string) {
     const report = await this.database.report(scanId);
     if (!report) throw new Error('The local report is unavailable.');
-    const settings = await this.database.settings();
-    if (settings.workspace !== 'cloud' || !this.cloud.state().authenticated) throw new Error('Sign in and switch to Cloud sync before syncing reports.');
+    if (report.scan.storage !== 'cloud') throw new Error('Choose Cloud sync in Settings before starting an audit you want to sync.');
     if (report.scan.status !== 'completed') throw new Error('Only completed reports can be synced.');
     const cloudScan = await this.cloud.sync(report);
     const scan: DesktopScan = { ...report.scan, cloud_id: cloudScan.id, synced_at: new Date().toISOString(), sync_error: null };

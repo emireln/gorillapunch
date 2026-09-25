@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { ArrowsClockwise, Cloud, CloudArrowUp, Desktop, HardDrives, LockKey, Moon, SignOut, Sun, UserCircle } from '@phosphor-icons/react';
-import type { CloudState, DesktopLocalePreference, DesktopSettings, DesktopUpdateState } from '../../shared/types';
+import type { CloudState, DesktopLocalePreference, DesktopSettings } from '../../shared/types';
 import { Dropdown } from '../components/Dropdown';
 import { useDesktopI18n, type DesktopMessage } from '../i18n';
 
@@ -22,18 +22,10 @@ export function Settings({ settings, cloud, pendingCount, onSyncPending, onSetti
   const [terms, setTerms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [checkingForUpdates, setCheckingForUpdates] = useState(false);
-  const [updateActionBusy, setUpdateActionBusy] = useState(false);
-  const [updateState, setUpdateState] = useState<DesktopUpdateState>({ status: 'idle' });
   const [accountMessage, setAccountMessage] = useState('');
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [syncingPending, setSyncingPending] = useState(false);
   const avatarInput = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const unsubscribe = window.gorillaPunch.system.onUpdateState(setUpdateState);
-    void window.gorillaPunch.system.getUpdateState().then(setUpdateState).catch(() => undefined);
-    return unsubscribe;
-  }, []);
 
   const changeAvatar = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -105,37 +97,12 @@ export function Settings({ settings, cloud, pendingCount, onSyncPending, onSetti
     setCheckingForUpdates(true);
     try {
       const message = await window.gorillaPunch.system.checkForUpdates();
-      const version = message.match(/^Version (.+) is available\.$/)?.[1];
-      setUpdateState(await window.gorillaPunch.system.getUpdateState());
-      const lowerMessage = message.toLowerCase();
-      const text = version ? t('settings.updateAvailable', { version }) : lowerMessage.includes('up to date') ? t('settings.updateCurrent') : lowerMessage.includes('unavailable') || lowerMessage.includes('packaged builds') ? t('settings.updatesUnavailable') : message;
-      notify(text, lowerMessage.includes('unavailable') || lowerMessage.includes('packaged builds') ? 'error' : 'success');
+      const version = message.match(/Version ([\d.]+) is available\./)?.[1];
+      notify(version ? t('settings.updateAvailable', { version }) : message.includes('up to date') ? t('settings.updateCurrent') : message, message.includes('unavailable') ? 'error' : 'success');
     } catch (error) {
       notify(error instanceof Error ? error.message : t('settings.updatesUnavailable'), 'error');
     } finally {
       setCheckingForUpdates(false);
-    }
-  };
-
-  const downloadUpdate = async () => {
-    setUpdateActionBusy(true);
-    try {
-      await window.gorillaPunch.system.downloadUpdate();
-    } catch {
-      notify(t('settings.updateDownloadError'), 'error');
-      setUpdateState(await window.gorillaPunch.system.getUpdateState().catch(() => ({ status: 'error' as const })));
-    } finally {
-      setUpdateActionBusy(false);
-    }
-  };
-
-  const installUpdate = async () => {
-    setUpdateActionBusy(true);
-    try {
-      await window.gorillaPunch.system.installUpdate();
-    } catch {
-      notify(t('settings.updateInstallError'), 'error');
-      setUpdateActionBusy(false);
     }
   };
 
@@ -200,16 +167,7 @@ export function Settings({ settings, cloud, pendingCount, onSyncPending, onSetti
         <Switch label={t('settings.findDevSites')} checked={settings.portScan} onChange={value => void onSettings({ portScan: value })}/>
         <Switch label={t('settings.launchStartup')} checked={settings.launchAtStartup} onChange={value => void onSettings({ launchAtStartup: value })}/>
         {settings.workspace === 'cloud' && <Switch label={t('settings.autoSync')} checked={settings.autoSync} onChange={value => void onSettings({ autoSync: value })}/>}
-        <button className="secondary-btn update-button" disabled={checkingForUpdates || updateActionBusy || updateState.status === 'downloading'} onClick={() => void checkForUpdates()}><ArrowsClockwise className={checkingForUpdates ? 'spin' : ''} size={17}/> {checkingForUpdates ? t('settings.checking') : t('settings.checkUpdates')}</button>
-        {updateState.status !== 'idle' && updateState.status !== 'current' && (updateState.status !== 'error' || updateState.version) && <div className="update-status-card" role="status" aria-live="polite">
-          <div className="update-status-copy">
-            <strong>{updateState.status === 'available' ? t('settings.updateAvailable', { version: updateState.version }) : updateState.status === 'downloading' ? t('settings.downloadingUpdate', { percent: updateState.percent }) : updateState.status === 'downloaded' ? t('settings.updateReady', { version: updateState.version }) : t('settings.updateDownloadError')}</strong>
-            {updateState.status === 'downloading' && <progress className="update-progress" max={100} value={updateState.percent} aria-label={t('settings.downloadingUpdate', { percent: updateState.percent })}/>}
-          </div>
-          {updateState.status === 'available' && <button className="primary-btn update-action" disabled={updateActionBusy} onClick={() => void downloadUpdate()}>{updateActionBusy ? t('settings.downloadingLabel') : t('settings.downloadUpdate')}</button>}
-          {updateState.status === 'error' && updateState.version && <button className="secondary-btn update-action" disabled={updateActionBusy} onClick={() => void downloadUpdate()}>{updateActionBusy ? t('settings.downloadingLabel') : t('settings.retryUpdate')}</button>}
-          {updateState.status === 'downloaded' && <button className="primary-btn update-action" disabled={updateActionBusy} onClick={() => void installUpdate()}>{t('settings.installUpdate')}</button>}
-        </div>}
+        <button className="secondary-btn update-button" disabled={checkingForUpdates} onClick={() => void checkForUpdates()}><ArrowsClockwise className={checkingForUpdates ? 'spin' : ''} size={17}/> {checkingForUpdates ? t('settings.checking') : t('settings.checkUpdates')}</button>
       </div>
     </section>
   </div>;
