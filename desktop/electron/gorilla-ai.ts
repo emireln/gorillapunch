@@ -25,7 +25,7 @@ const providerDefaults: Record<AIProvider, { endpoint: string; model: string }> 
 
 const gorillaSystemPrompt = `You are Gorilla AI, the audit-focused engineering assistant built into GorillaPunch. Stay focused on launch-readiness audits, findings, evidence, fixes, and how GorillaPunch works. If asked for unrelated general chat, briefly redirect to a website audit or a GorillaPunch question.
 
-GorillaPunch is a local-first Windows desktop application for checking whether web apps are ready to launch. A Punch runs bounded browser checks and returns evidence, severity, a score, and a Launch Gate decision. The local engine crawls pages, reads response headers, inspects browser runtime and UI behavior, checks accessibility, SEO, security, reliability, performance, production readiness, and saves reports/screenshots on the device. The engine gathers repeatable evidence; you interpret it, identify what matters, explain uncertainty, and propose fixes. A check result is evidence, not a certification. Do not claim a site is secure, accessible, or compliant based only on an automated scan.
+GorillaPunch is a local-first Windows desktop application for checking whether web apps are ready to launch. A Punch runs bounded browser checks and returns evidence, severity, a score, and a Launch Gate decision. The local engine crawls pages, reads response headers, inspects browser runtime and UI behavior, checks accessibility, SEO, security, reliability, performance, production readiness, and saves reports/screenshots on the device. Quick Punch is for an initial signal; Full Punch checks a broader set of pages and evidence. The desktop app provides Overview, History, project monitoring, Settings, and Gorilla Shot. The public website handles product information, legal pages, installation, and downloads; account actions belong in the desktop app. Desktop audits run locally; the separate web worker handles queued web scans. The engine gathers repeatable evidence; you interpret it, identify what matters, explain uncertainty, and propose fixes. A check result is evidence, not a certification. Do not claim a site is secure, accessible, or compliant based only on an automated scan.
 
 The desktop app's History contains local reports and optional synced report records. Cloud sync is user-controlled and applies only to structured report data; Gorilla AI chats and provider keys stay on this device and are never synced. API keys are encrypted with the operating system's secure storage. GorillaPunch supports OpenAI, Google Gemini, Anthropic Claude, DeepSeek, GLM through Z.ai, Xiaomi MiMo, OpenRouter, and local Ollama.
 
@@ -293,10 +293,12 @@ function boundedHistory(history: AIChatMessage[]) {
 
 async function streamCompatible(config: ProviderConfig, history: AIChatMessage[], emit: (event: { text?: string; thinking?: boolean; usage?: AIUsage }) => void): Promise<AIUsage> {
   const includeUsage = ['openai', 'deepseek', 'openrouter'].includes(config.provider);
-  const body: JsonObject = { model: config.model, messages: [{ role: 'system', content: gorillaSystemPrompt }, ...chatInput(history)], stream: true, ...(config.provider === 'openai' ? { max_completion_tokens: 2500 } : { max_tokens: 2500 }) };
+  const usesCompletionTokenLimit = config.provider === 'openai' || config.provider === 'mimo';
+  const body: JsonObject = { model: config.model, messages: [{ role: 'system', content: gorillaSystemPrompt }, ...chatInput(history)], stream: true, ...(usesCompletionTokenLimit ? { max_completion_tokens: 2500 } : { max_tokens: 2500 }) };
   if (includeUsage) body.stream_options = { include_usage: true };
   if (config.provider === 'deepseek') { body.thinking = { type: 'enabled' }; body.reasoning_effort = 'high'; }
   if (config.provider === 'glm') body.thinking = { type: 'enabled' };
+  if (config.provider === 'mimo') body.thinking = { type: 'enabled' };
   const response = await fetch(`${providerBase(config)}/chat/completions`, { method: 'POST', headers: providerHeaders(config.provider, config.apiKey), body: JSON.stringify(body), signal: AbortSignal.timeout(300_000), redirect: 'error', cache: 'no-store' });
   if (!response.ok) { await response.body?.cancel(); throw new Error(providerError(response.status)); }
   let usage: AIUsage = {};
@@ -428,7 +430,8 @@ async function requestOnce(config: ProviderConfig, text: string, maxTokens = 40)
     const data = await request(`${safeOllamaEndpoint(config.endpoint || providerDefaults.ollama.endpoint)}/api/chat`, providerHeaders('ollama', config.apiKey), { model: config.model, stream: false, messages: [{ role: 'system', content: gorillaSystemPrompt }, { role: 'user', content: text }], options: { num_predict: maxTokens } });
     return String((data.message as JsonObject | undefined)?.content || '');
   }
-  const data = await request(`${providerBase(config)}/chat/completions`, providerHeaders(config.provider, config.apiKey), { model: config.model, messages: [{ role: 'system', content: gorillaSystemPrompt }, { role: 'user', content: text }], ...(config.provider === 'openai' ? { max_completion_tokens: maxTokens } : { max_tokens: maxTokens }) });
+  const usesCompletionTokenLimit = config.provider === 'openai' || config.provider === 'mimo';
+  const data = await request(`${providerBase(config)}/chat/completions`, providerHeaders(config.provider, config.apiKey), { model: config.model, messages: [{ role: 'system', content: gorillaSystemPrompt }, { role: 'user', content: text }], ...(usesCompletionTokenLimit ? { max_completion_tokens: maxTokens } : { max_tokens: maxTokens }), ...(config.provider === 'mimo' ? { thinking: { type: 'enabled' } } : {}) });
   const message = (((data.choices as JsonObject[] | undefined)?.[0]?.message) as JsonObject | undefined);
   return typeof message?.content === 'string' ? message.content : '';
 }
@@ -578,7 +581,7 @@ function validDate(value: unknown) {
 
 function finiteNonnegative(value: unknown): value is number { return typeof value === 'number' && Number.isFinite(value) && value >= 0; }
 function numberValue(value: unknown): number { return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(10_000_000, Math.floor(value))) : 0; }
-function isReasoningModel(config: ProviderConfig) { return config.provider === 'deepseek' || config.provider === 'glm' || config.provider === 'anthropic' || /reason|thinking|r1|o[134]/i.test(config.model); }
+function isReasoningModel(config: ProviderConfig) { return config.provider === 'deepseek' || config.provider === 'glm' || config.provider === 'anthropic' || config.provider === 'mimo' || /reason|thinking|r1|o[134]/i.test(config.model); }
 function providerError(status: number) { return `The provider returned HTTP ${status}. Check the API key, model ID, account balance, and provider status.`; }
 function safeProviderMessage(error: unknown) { return error instanceof Error ? error.message.replace(/(?:sk-[A-Za-z0-9_-]{8,}|eyJ[A-Za-z0-9_.-]{16,})/g, '[redacted]').slice(0, 320) : 'The AI request failed. Check the provider connection and try again.'; }
 function delay(ms: number) { return new Promise(resolve => setTimeout(resolve, ms)); }
