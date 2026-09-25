@@ -9,7 +9,7 @@ var shot_palette = {
 var shot_locale = 'en';
 var shot_strings = {
 	en: {
-		intro: '', deploy: 'Play Sector {level}',
+		intro: '', deploy: 'Play Sector {level}', startSurvival: 'Start survival', loadingMap: 'Generating connected map chunks…', preparingSurvival: 'Generating the frontier…', survivalNotice: 'SURVIVE THE GENERATED FRONTIER',
 		move: 'MOVE', aim: 'AIM', fire: 'FIRE', pause: 'PAUSE', ready: 'Ready to play?', errorTitle: 'ARENA UNAVAILABLE', loading: 'Loading game systems…', loadingTitle: 'PREPARING THE ARENA', loadingStep: 'Loading textures and building the sector…', loadingError: 'The arena could not be loaded. Check your graphics support and try again.',
 		preparing: 'Preparing the arena…', noWebgl: 'WebGL is unavailable on this device.', tryAgain: 'Try again', secured: 'SECTORS SECURED', ended: 'RUN ENDED',
 		cleared: 'All systems are back online. Your run is saved.', failed: 'The mission is over. Your progress is saved.', deployAgain: 'Deploy again',
@@ -17,7 +17,7 @@ var shot_strings = {
 		reboot: 'REBOOTING...', success: 'SUCCESS', systemsOffline: 'SYSTEM(S) STILL OFFLINE', allOnline: 'ALL SYSTEMS ONLINE', triangulating: 'TRIANGULATING POSITION FOR NEXT HOP...', target: 'TARGET ACQUIRED', jumping: 'JUMPING...', scan: 'SCANNING FOR OFFLINE SYSTEMS...___'
 	},
 	'pt-BR': {
-		intro: '', deploy: 'Jogar no setor {level}',
+		intro: '', deploy: 'Jogar no setor {level}', startSurvival: 'Iniciar sobrevivência', loadingMap: 'Gerando trechos conectados do mapa…', preparingSurvival: 'Gerando a fronteira…', survivalNotice: 'SOBREVIVA À FRONTEIRA GERADA',
 		move: 'MOVER', aim: 'MIRAR', fire: 'ATIRAR', pause: 'PAUSAR', ready: 'Pronto para jogar?', errorTitle: 'ARENA INDISPONÍVEL', loading: 'Carregando os sistemas do jogo…', loadingTitle: 'PREPARANDO A ARENA', loadingStep: 'Carregando texturas e montando o setor…', loadingError: 'Não foi possível carregar a arena. Verifique o suporte gráfico e tente novamente.',
 		preparing: 'Preparando a arena…', noWebgl: 'WebGL não está disponível neste dispositivo.', tryAgain: 'Tentar novamente', secured: 'SETORES CONCLUÍDOS', ended: 'PARTIDA ENCERRADA',
 		cleared: 'Todos os sistemas estão online. Sua partida foi salva.', failed: 'A missão terminou. Seu progresso foi salvo.', deployAgain: 'Jogar novamente',
@@ -45,6 +45,9 @@ var shot = {
 	muted: false,
 	volume: 0.65,
 	selectedLevel: 1,
+	selectedMode: 'campaign',
+	survivalMode: false,
+	zonesGenerated: 0,
 	runId: '',
 	startedAt: '',
 	elapsedMs: 0,
@@ -75,12 +78,12 @@ function shot_apply_locale() {
 	if (!shot.active && !shot.waiting) {
 		shot_heading.textContent = shot_t('ready');
 		shot_message.textContent = shot_t('intro');
-		shot_start.textContent = shot_t('deploy', { level: shot.selectedLevel });
+		shot_start.textContent = shot.selectedMode === 'survival' ? shot_t('startSurvival') : shot_t('deploy', { level: shot.selectedLevel });
 		Object.keys(shot_controls).forEach(function(key) { shot_controls[key].textContent = shot_t(key); });
 		shot_fire_key.textContent = shot_locale === 'pt-BR' ? 'CLIQUE E SEGURE' : 'HOLD CLICK';
 	}
 	shot_loading_title.textContent = shot_t('loadingTitle');
-	if (!shot.ready) shot_loading_step.textContent = shot_t('loadingStep');
+	if (!shot.ready) shot_loading_step.textContent = shot.selectedMode === 'survival' ? shot_t('loadingMap') : shot_t('loadingStep');
 }
 
 function shot_send(type, detail) {
@@ -93,6 +96,8 @@ function shot_snapshot() {
 		startedAt: shot.startedAt,
 		level: current_level || shot.selectedLevel,
 		levelReached: shot.levelReached,
+		mode: shot.survivalMode ? 'survival' : 'campaign',
+		zonesGenerated: shot.zonesGenerated,
 		health: entity_player && shot.active ? Math.max(0, entity_player.h) : 0,
 		maxHealth: 5,
 		systems: cpus_rebooted || 0,
@@ -120,8 +125,10 @@ function shot_configure(detail) {
 	shot_apply_locale();
 	var previousLevel = shot.selectedLevel;
 	var previousMap = shot_map_variant;
+	var previousMode = shot.selectedMode;
 	if (Number.isInteger(detail.level)) shot.selectedLevel = Math.max(1, Math.min(3, detail.level));
 	if (Number.isInteger(detail.map)) shot_map_variant = Math.max(0, Math.min(2, detail.map));
+	if (detail.mode === 'campaign' || detail.mode === 'survival') shot.selectedMode = detail.mode;
 	var colors = detail.colors || {};
 	var names = ['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'ambient'];
 	for (var i = 0; i < names.length; i++) {
@@ -134,9 +141,9 @@ function shot_configure(detail) {
 	shot_palette.ambient = shot_color(colors.ambient) || shot_palette.ambient;
 	shot_palette.purple = shot_color(colors.purple) || shot_palette.purple;
 	shot_palette.red = shot_color(colors.red) || shot_palette.red;
-	if (!shot.active && !shot.waiting) shot_start.textContent = shot_t('deploy', { level: shot.selectedLevel });
+	if (!shot.active && !shot.waiting) shot_start.textContent = shot.selectedMode === 'survival' ? shot_t('startSurvival') : shot_t('deploy', { level: shot.selectedLevel });
 	shot_start.disabled = (!shot.ready && !shot.loadingFailed) || shot.waiting;
-	if (shot.ready && !shot.active && !shot.waiting && (previousLevel !== shot.selectedLevel || previousMap !== shot_map_variant)) shot_prepare_preview(shot.selectedLevel);
+	if (shot.ready && !shot.active && !shot.waiting && (previousLevel !== shot.selectedLevel || previousMap !== shot_map_variant || previousMode !== shot.selectedMode)) shot_prepare_preview(shot.selectedLevel);
 }
 
 function shot_set_loading(show, title, step, progress) {
@@ -177,6 +184,16 @@ function shot_prepare_preview(level) {
 	var request = ++shot.previewRequest;
 	level = Math.max(1, Math.min(3, Number(level) || 1));
 	current_level = level - 1;
+	if (shot.selectedMode === 'survival') {
+		build_survival_level(function() {
+			if (request !== shot.previewRequest || shot.active || shot.waiting) return;
+			shot.previewLevel = level;
+			shot_render_preview();
+			shot_overlay.hidden = false;
+			shot_loading.hidden = true;
+		}, true);
+		return;
+	}
 	load_level(level, function() {
 		if (request !== shot.previewRequest || shot.active || shot.waiting) return;
 		shot.previewLevel = level;
@@ -230,7 +247,7 @@ function shot_preload_assets() {
 	loadNext();
 }
 
-function shot_begin(runId, level, startedAt) {
+function shot_begin(runId, level, startedAt, mode) {
 	if (shot.active || typeof runId !== 'string' || !/^[0-9a-f-]{36}$/i.test(runId)) return;
 	if (!gl || !shot.ready) { shot_fail(shot_t('noWebgl')); return; }
 	shot.waiting = false;
@@ -241,20 +258,24 @@ function shot_begin(runId, level, startedAt) {
 	shot.score = 0;
 	shot.kills = 0;
 	shot.systems = 0;
+	shot.zonesGenerated = 0;
+	shot.survivalMode = mode === 'survival';
 	entities_to_kill = [];
 	shot.levelReached = shot.startLevel;
 	shot.active = true;
 	shot.paused = false;
 	shot_overlay.hidden = true;
-	shot_set_loading(true, shot_t('loadingTitle'), shot_t('preparing'), 90);
+	shot_set_loading(true, shot_t('loadingTitle'), shot.survivalMode ? shot_t('preparingSurvival') : shot_t('preparing'), 90);
 	shot.firstFrame = false;
 	current_level = shot.startLevel - 1;
 	var load = function() {
-		next_level(function() {
+		var finishLoad = function() {
 			time_last = performance.now();
 			shot_publish('state');
 			if (!shot.loopStarted) { shot.loopStarted = true; requestAnimationFrame(game_tick); }
-		});
+		};
+		if (shot.survivalMode) build_survival_level(finishLoad, false);
+		else next_level(finishLoad);
 	};
 	load();
 }
@@ -339,6 +360,7 @@ game_tick = function() {
 	requestAnimationFrame(game_tick);
 	var now = performance.now();
 	if (!shot.active || shot.paused || !shot.ready) { time_last = now; return; }
+	if (shot.survivalMode) survival_refresh_window(false, true);
 	var delta = Math.max(0, now - time_last);
 	time_elapsed = Math.min(delta, 40) / 1000;
 	shot.elapsedMs += Math.min(delta, 250);
@@ -388,14 +410,14 @@ shot_start.addEventListener('click', function() {
 	shot_set_loading(true, shot_t('loadingTitle'), shot_t('preparing'), 85);
 	if (audio_ctx) void audio_ctx.resume();
 	if (!shot.audioStarted) { shot.audioStarted = true; audio_init(function() {}); }
-	shot_send('start-request', { level: shot.selectedLevel });
+	shot_send('start-request', { level: shot.selectedLevel, mode: shot.selectedMode });
 });
 
 window.addEventListener('message', function(event) {
 	if (event.source !== window.parent || !event.data || event.data.channel !== 'gorilla-shot-host') return;
 	var detail = event.data.detail || {};
 	if (event.data.type === 'configure') shot_configure(detail);
-	if (event.data.type === 'start') shot_begin(detail.runId, detail.level, detail.startedAt);
+	if (event.data.type === 'start') shot_begin(detail.runId, detail.level, detail.startedAt, detail.mode);
 	if (event.data.type === 'pause') shot_pause(true);
 	if (event.data.type === 'resume') shot_pause(false);
 	if (event.data.type === 'audio') {

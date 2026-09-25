@@ -45,6 +45,12 @@ class entity_t {
 	}
 
 	_collides(x, z) {
+		if (survival_mode) {
+			return survival_tile_at(x >> 3, z >> 3) > 7 ||
+				survival_tile_at((x + 6) >> 3, z >> 3) > 7 ||
+				survival_tile_at((x + 6) >> 3, (z + 4) >> 3) > 7 ||
+				survival_tile_at(x >> 3, (z + 4) >> 3) > 7;
+		}
 		return level_data[(x >> 3) + (z >> 3) * level_width] > 7 || // top left
 			level_data[((x + 6) >> 3) + (z >> 3) * level_width] > 7 || // top right
 			level_data[((x + 6) >> 3) + ((z+4) >> 3) * level_width] > 7 || // bottom right

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { ShotDeviceSummary, ShotProgress, ShotRun, ShotRunSnapshot } from '../shared/types';
+import type { ShotDeviceSummary, ShotGameMode, ShotProgress, ShotRun, ShotRunSnapshot } from '../shared/types';
 import { mergeShotSummaries, readShotSummary, summarizeShotRuns } from '../shared/shot-progress';
 import type { DesktopDatabase } from './database';
 import type { CloudService } from './cloud';
@@ -28,9 +28,10 @@ export class ShotService {
     return { ...merged, sync: pending ? 'pending' : 'synced', lastSyncedAt: cache?.syncedAt || null, syncError: null };
   }
 
-  async start(level: number): Promise<ShotRun> {
+  async start(level: number, mode: ShotGameMode = 'campaign'): Promise<ShotRun> {
+    if (mode !== 'campaign' && mode !== 'survival') throw new Error('Invalid game mode.');
     const progress = await this.progress();
-    const chosen = Number.isInteger(level) ? Math.max(1, Math.min(3, level)) : 1;
+    const chosen = mode === 'survival' ? 1 : Number.isInteger(level) ? Math.max(1, Math.min(3, level)) : 1;
     if (chosen > progress.stats.highestLevel) throw new Error('Clear the previous sector to unlock this one.');
     const settings = await this.database.settings();
     const state = this.cloud.state();
@@ -42,8 +43,10 @@ export class ShotService {
       updatedAt: now,
       finishedAt: null,
       status: 'active',
+      mode,
       startingLevel: chosen,
       levelReached: chosen,
+      zonesGenerated: 0,
       durationMs: 0,
       score: 0,
       kills: 0,
@@ -123,7 +126,9 @@ function cleanSnapshot(current: ShotRun, value: ShotRunSnapshot): ShotRunSnapsho
   const number = (candidate: unknown, previous: number, max: number) =>
     typeof candidate === 'number' && Number.isSafeInteger(candidate) && candidate >= previous && candidate <= max ? candidate : previous;
   return {
+    mode: current.mode,
     levelReached: number(value.levelReached, current.levelReached, 3),
+    zonesGenerated: number(value.zonesGenerated, current.zonesGenerated, 1_000_000),
     durationMs: number(value.durationMs, current.durationMs, MAX_RUN_MS),
     score: number(value.score, current.score, MAX_SCORE),
     kills: number(value.kills, current.kills, MAX_SCORE),

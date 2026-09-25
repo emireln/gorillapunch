@@ -238,7 +238,7 @@ export class DesktopDatabase {
     await this.ready;
     const result = await this.client.execute('SELECT body FROM desktop_shot_runs ORDER BY created_at DESC');
     return result.rows.flatMap(row => {
-      try { return [JSON.parse(String(row.body)) as ShotRun]; }
+      try { return [normalizeShotRun(JSON.parse(String(row.body)))]; }
       catch { return []; }
     });
   }
@@ -247,7 +247,7 @@ export class DesktopDatabase {
     await this.ready;
     const result = await this.client.execute({ sql: 'SELECT body FROM desktop_shot_runs WHERE id=?', args: [id] });
     if (!result.rows.length) return null;
-    try { return JSON.parse(String(result.rows[0].body)) as ShotRun; }
+    try { return normalizeShotRun(JSON.parse(String(result.rows[0].body))); }
     catch { return null; }
   }
 
@@ -270,6 +270,15 @@ export class DesktopDatabase {
   }
 
   async close() { await this.client.close(); }
+}
+
+function normalizeShotRun(value: unknown): ShotRun {
+  const run = value as ShotRun;
+  return {
+    ...run,
+    mode: run.mode === 'survival' ? 'survival' : 'campaign',
+    zonesGenerated: Number.isSafeInteger(run.zonesGenerated) && run.zonesGenerated >= 0 ? Math.min(run.zonesGenerated, 1_000_000) : 0,
+  };
 }
 
 export function sanitizeSettings(current: DesktopSettings, patch: Partial<DesktopSettings>): DesktopSettings {

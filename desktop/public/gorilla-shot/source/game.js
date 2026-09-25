@@ -16,6 +16,13 @@ var udef, // global undefined
 	level_width = 64,
 	level_height = 64,
 	level_data = new Uint8Array(level_width * level_height),
+	survival_mode = false,
+	survival_seed = 0,
+	survival_chunks = new Map(),
+	survival_window_x = null,
+	survival_window_z = null,
+	survival_chunk_size = 16,
+	survival_cache_limit = 96,
 
 	cpus_total = 0,
 	cpus_rebooted = 0,
@@ -119,7 +126,201 @@ function generated_level(id, variant) {
 	return pixels;
 }
 
+function survival_chunk_seed(cx, cz) {
+	var value = (survival_seed ^ _math.imul(cx, 0x9e3779b1) ^ _math.imul(cz, 0x85ebca77)) >>> 0;
+	value ^= value >>> 16;
+	value = _math.imul(value, 0x7feb352d);
+	value ^= value >>> 15;
+	value = _math.imul(value, 0x846ca68b);
+	return (value ^ (value >>> 16)) >>> 0;
+}
+
+function survival_rng(seed) {
+	var state = seed || 0x6d2b79f5;
+	return function() {
+		state = (state + 0x6d2b79f5) >>> 0;
+		var value = state;
+		value = _math.imul(value ^ (value >>> 15), value | 1);
+		value ^= value + _math.imul(value ^ (value >>> 7), value | 61);
+		return (value ^ (value >>> 14)) >>> 0;
+	};
+}
+
+function survival_make_chunk(cx, cz) {
+	var seed = survival_chunk_seed(cx, cz);
+	var random = survival_rng(seed);
+	var size = survival_chunk_size;
+	var tiles = new Uint8Array(size * size);
+	tiles.fill(8);
+	function floor(x, z) {
+		if (x < 0 || z < 0 || x >= size || z >= size) return;
+		var index = z * size + x;
+		if (tiles[index] === 8) tiles[index] = 1 + random() % 7;
+	}
+	function hall(x1, z1, x2, z2) {
+		var xStep = x1 <= x2 ? 1 : -1;
+		var zStep = z1 <= z2 ? 1 : -1;
+		for (var x = x1; x !== x2 + xStep; x += xStep) floor(x, z1);
+		for (var z = z1; z !== z2 + zStep; z += zStep) floor(x2, z);
+	}
+
+	// All chunk edges share the same broad crossing, so adjacent sections join.
+	for (var z = 0; z < size; z++) for (var x = 0; x < size; x++) {
+		if ((x >= 6 && x <= 9) || (z >= 6 && z <= 9)) floor(x, z);
+	}
+	var rooms = [
+		[3 + random() % 2, 3 + random() % 2],
+		[11 + random() % 2, 3 + random() % 2],
+		[3 + random() % 2, 11 + random() % 2],
+		[11 + random() % 2, 11 + random() % 2]
+	];
+	for (var i = 0; i < rooms.length; i++) {
+		var room = rooms[i];
+		var radius = 1 + random() % 2;
+		for (var rz = -radius; rz <= radius; rz++) for (var rx = -radius; rx <= radius; rx++) floor(room[0] + rx, room[1] + rz);
+		var centerX = i % 2 === 0 ? 7 : 8;
+		var centerZ = i < 2 ? 7 : 8;
+		hall(room[0], room[1], centerX, room[1]);
+		hall(centerX, room[1], centerX, centerZ);
+	}
+	return { cx: cx, cz: cz, seed: seed, tiles: tiles, spawned: false };
+}
+
+function survival_get_chunk(cx, cz) {
+	var key = cx + ',' + cz;
+	var chunk = survival_chunks.get(key);
+	if (chunk) {
+		survival_chunks.delete(key);
+		survival_chunks.set(key, chunk);
+		return chunk;
+	}
+	chunk = survival_make_chunk(cx, cz);
+	survival_chunks.set(key, chunk);
+	shot.zonesGenerated = _math.min(1000000, shot.zonesGenerated + 1);
+	while (survival_chunks.size > survival_cache_limit) {
+		var oldest = survival_chunks.keys().next().value;
+		survival_chunks.delete(oldest);
+	}
+	return chunk;
+}
+
+function survival_tile_at(tileX, tileZ) {
+	var size = survival_chunk_size;
+	var chunkX = _math.floor(tileX / size);
+	var chunkZ = _math.floor(tileZ / size);
+	var localX = tileX - chunkX * size;
+	var localZ = tileZ - chunkZ * size;
+	return survival_get_chunk(chunkX, chunkZ).tiles[localZ * size + localX];
+}
+
+function survival_enemy_count() {
+	var count = 0;
+	for (var i = 0; i < entities.length; i++) {
+		var entity = entities[i];
+		if (!entity._dead && (entity instanceof entity_spider_t || entity instanceof entity_sentry_t)) count++;
+	}
+	return count;
+}
+
+function survival_spawn_chunk(chunk) {
+	if (!shot.active || survival_enemy_count() >= 14 || entities.length > 72) return;
+	var random = survival_rng(chunk.seed ^ shot.zonesGenerated);
+	var count = 1 + (shot.zonesGenerated > 18 && random() % 5 === 0 ? 1 : 0);
+	for (var i = 0; i < count; i++) {
+		if (survival_enemy_count() >= 14 || entities.length > 72) break;
+		var found = false;
+		for (var attempt = 0; attempt < 28; attempt++) {
+			var index = random() % chunk.tiles.length;
+			if (chunk.tiles[index] > 7) continue;
+			var x = (chunk.cx * survival_chunk_size + index % survival_chunk_size) * 8 + 1;
+			var z = (chunk.cz * survival_chunk_size + _math.floor(index / survival_chunk_size)) * 8 + 1;
+			var dx = x - entity_player.x;
+			var dz = z - entity_player.z;
+			if (dx * dx + dz * dz < 64 * 64) continue;
+			if (shot.zonesGenerated > 15 && random() % 8 === 0) new entity_sentry_t(x, 0, z, 5, 32);
+			else new entity_spider_t(x, 0, z, 5, 27);
+			found = true;
+			break;
+		}
+		if (!found) break;
+	}
+}
+
+function survival_trim_entities() {
+	if (!entity_player) return;
+	entities = entities.filter(function(entity) {
+		if (entity === entity_player) return true;
+		if (_math.abs(entity.x - entity_player.x) <= 192 && _math.abs(entity.z - entity_player.z) <= 192) return true;
+		entity._dead = true;
+		return false;
+	});
+	entities_to_kill = [];
+}
+
+function survival_refresh_window(force, allowSpawns) {
+	if (!entity_player || !survival_mode) return false;
+	var centerX = _math.floor(_math.floor(entity_player.x / 8) / survival_chunk_size);
+	var centerZ = _math.floor(_math.floor(entity_player.z / 8) / survival_chunk_size);
+	if (!force && centerX === survival_window_x && centerZ === survival_window_z) return false;
+	var firstX = centerX - 1;
+	var firstZ = centerZ - 1;
+	var windowChunks = [];
+	for (var row = 0; row < 3; row++) {
+		windowChunks[row] = [];
+		for (var column = 0; column < 3; column++) {
+			var chunk = survival_get_chunk(firstX + column, firstZ + row);
+			windowChunks[row][column] = chunk;
+			if (allowSpawns && !chunk.spawned) {
+				chunk.spawned = true;
+				survival_spawn_chunk(chunk);
+			}
+		}
+	}
+	var originX = firstX * survival_chunk_size;
+	var originZ = firstZ * survival_chunk_size;
+	var windowSize = survival_chunk_size * 3;
+	num_verts = 0;
+	level_data.fill(0);
+	for (var z = 0; z < windowSize; z++) for (var x = 0; x < windowSize; x++) {
+		var chunk = windowChunks[_math.floor(z / survival_chunk_size)][_math.floor(x / survival_chunk_size)];
+		var tile = chunk.tiles[(z % survival_chunk_size) * survival_chunk_size + x % survival_chunk_size];
+		level_data[z * level_width + x] = tile;
+		var worldX = (originX + x) * 8;
+		var worldZ = (originZ + z) * 8;
+		if (tile > 7) push_block(worldX, worldZ, 4, tile - 1);
+		else if (tile > 0) push_floor(worldX, worldZ, tile - 1);
+	}
+	level_num_verts = num_verts;
+	survival_window_x = centerX;
+	survival_window_z = centerZ;
+	survival_trim_entities();
+	return true;
+}
+
+function build_survival_level(callback, preview) {
+	survival_mode = true;
+	survival_seed = (Date.now() ^ _math.floor(_math.random() * 0xffffffff)) >>> 0;
+	survival_chunks = new Map();
+	survival_window_x = survival_window_z = null;
+	current_level = 1;
+	entities = [];
+	entities_to_kill = [];
+	level_data.fill(0);
+	num_verts = num_lights = 0;
+	level_num_verts = 0;
+	cpus_total = cpus_rebooted = 0;
+	entity_player = new entity_player_t(8 * 8 + 1, 0, 8 * 8 + 1, 5, 18);
+	shot.zonesGenerated = 0;
+	survival_refresh_window(true, !preview);
+	camera_x = -entity_player.x;
+	camera_y = 0;
+	camera_z = -entity_player.z;
+	terminal_show_notice(shot_t('survivalNotice'));
+	callback && callback();
+}
+
 function build_level(id, colors, callback) {
+		survival_mode = false;
 		entities = [];
 		level_data.fill(0);
 		num_verts = 0;
@@ -187,8 +388,8 @@ function build_level(id, colors, callback) {
 		}
 
 		camera_x = -entity_player.x;
-		camera_y = -300;
-		camera_z = -entity_player.z - 88;
+		camera_y = 0;
+		camera_z = -entity_player.z;
 
 		level_num_verts = num_verts;
 

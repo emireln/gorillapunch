@@ -1,5 +1,5 @@
 var
-	gl = c.getContext('webgl') || c.getContext('experimental-webgl'),
+	gl = c.getContext('webgl', { antialias: true, powerPreference: 'high-performance' }) || c.getContext('experimental-webgl', { antialias: true, powerPreference: 'high-performance' }),
 	vertex_buffer,
 	shader_program,
 
@@ -42,7 +42,7 @@ var
 		shader_uniform + "float l[7*"+max_lights+"];" +
 		shader_uniform + "vec3 ambient;" +
 		shader_const_mat4 + "v=mat4(1,0,0,0,0,.707,.707,0,0,-.707,.707,0,0,-22.627,-22.627,1);" + // view
-		shader_const_mat4 + "r=mat4(.977,0,0,0,0,1.303,0,0,0,0,-1,-1,0,0,-2,0);"+ // projection
+		shader_const_mat4 + "r=mat4(1.12,0,0,0,0,1.495,0,0,0,0,-1,-1,0,0,-2,0);"+ // closer camera framing
 		"void main(void){" +
 			"vl=ambient;" + // GorillaPunch ambient color
 			"for(int i=0; i<"+max_lights+"; i++) {"+
@@ -80,7 +80,6 @@ var
 				"gl_FragColor.rgb=mix(gl_FragColor.rgb,mapped,.62);" +
 			"}" +
 			"gl_FragColor.rgb=min(gl_FragColor.rgb*1.35,vec3(1.));" + // brighten the original low-light palette
-			"gl_FragColor.rgb=floor(gl_FragColor.rgb*6.35)/6.35;" + // reduce colors to ~256
 		"}";
 
 
@@ -115,6 +114,7 @@ function renderer_init() {
 	gl.enable(gl.DEPTH_TEST);
 	gl.enable(gl.BLEND);
 	gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+	renderer_resize_canvas();
 	gl.viewport(0,0,c.width,c.height);
 
 	enable_vertex_attrib('p', 3, 8, 0);
@@ -126,11 +126,27 @@ function renderer_bind_image(image) {
 	var texture_2d = gl.TEXTURE_2D;
 	gl.bindTexture(texture_2d, gl.createTexture());
 	gl.texImage2D(texture_2d, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-	gl.texParameteri(texture_2d, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-	gl.texParameteri(texture_2d, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+	gl.texParameteri(texture_2d, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+	gl.texParameteri(texture_2d, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 	gl.texParameteri(texture_2d, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 	gl.texParameteri(texture_2d, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 }
+
+function renderer_resize_canvas() {
+	var bounds = c.getBoundingClientRect();
+	if (!bounds.width || !bounds.height) return;
+	var ratio = _math.min(_math.max(window.devicePixelRatio || 1, 1), 2);
+	var scale = _math.min(ratio, 2560 / bounds.width, 1440 / bounds.height);
+	var width = _math.max(1, _math.round(bounds.width * scale));
+	var height = _math.max(1, _math.round(bounds.height * scale));
+	if (c.width === width && c.height === height) return;
+	c.width = width;
+	c.height = height;
+	if (gl) gl.viewport(0, 0, width, height);
+}
+
+window.addEventListener('resize', renderer_resize_canvas);
+if (window.ResizeObserver) new ResizeObserver(renderer_resize_canvas).observe(c);
 
 function renderer_prepare_frame() {
 	num_verts = level_num_verts;
@@ -141,7 +157,7 @@ function renderer_prepare_frame() {
 }
 
 function renderer_end_frame() {
-	gl.uniform3f(camera_uniform, camera_x, camera_y - 10, camera_z-26);
+	gl.uniform3f(camera_uniform, camera_x, camera_y - 10, camera_z - 22);
 	gl.uniform1fv(light_uniform, light_data);
 	gl.uniform3fv(ambient_uniform, shot_palette.ambient);
 	gl.uniform3fv(purple_uniform, shot_palette.purple);
@@ -155,6 +171,7 @@ function renderer_end_frame() {
 };
 
 function push_quad(x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4, nx, ny, nz, tile) {
+	if (num_verts + 6 > max_verts) return;
 	var u = tile * tile_fraction + px_nudge;
 	buffer_data.set([
 		x1, y1, z1, u, 0, nx, ny, nz,

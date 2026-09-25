@@ -39,7 +39,7 @@ export function summarizeShotRuns(deviceId: string, runs: ShotRun[]): ShotDevice
   const recentRuns = runs.filter(run => run.status !== 'active')
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
     .slice(0, 8)
-    .map(run => ({ id: run.id, startedAt: run.startedAt, updatedAt: run.updatedAt, finishedAt: run.finishedAt, status: run.status, startingLevel: run.startingLevel, levelReached: run.levelReached, durationMs: run.durationMs, score: run.score, kills: run.kills, systems: run.systems }));
+    .map(run => ({ id: run.id, startedAt: run.startedAt, updatedAt: run.updatedAt, finishedAt: run.finishedAt, status: run.status, mode: run.mode || 'campaign', startingLevel: run.startingLevel, levelReached: run.levelReached, zonesGenerated: bounded(run.zonesGenerated, 1_000_000), durationMs: run.durationMs, score: run.score, kills: run.kills, systems: run.systems }));
   return { version: 1, deviceId, updatedAt, stats, recentRuns };
 }
 
@@ -70,8 +70,10 @@ export function readShotSummary(value: unknown): ShotDeviceSummary | null {
       updatedAt: run.updatedAt,
       finishedAt: validDate(run.finishedAt) ? run.finishedAt : null,
       status: run.status as ShotRunRecord['status'],
+      mode: run.mode === 'survival' ? 'survival' : 'campaign',
       startingLevel: Math.max(1, Math.min(3, bounded(run.startingLevel, 3))),
       levelReached: Math.max(1, Math.min(3, bounded(run.levelReached, 3))),
+      zonesGenerated: bounded(run.zonesGenerated, 1_000_000),
       durationMs: bounded(run.durationMs, MAX_RUN_MS),
       score: bounded(run.score),
       kills: bounded(run.kills),

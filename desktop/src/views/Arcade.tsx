@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CloudArrowUp, CornersIn, CornersOut, Pause, Play, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
-import type { ShotProgress, ShotRunSnapshot, WorkspaceMode } from '../../shared/types';
+import type { ShotGameMode, ShotProgress, ShotRunSnapshot, WorkspaceMode } from '../../shared/types';
 import { Dropdown } from '../components/Dropdown';
 import { Tooltip } from '../components/Tooltip';
 import { useDesktopI18n } from '../i18n';
@@ -10,9 +10,9 @@ interface FrameState extends ShotRunSnapshot {
   runId: string; health: number; maxHealth: number; systemsTotal: number; totalSystems: number;
   status: 'idle' | 'running' | 'paused';
 }
-const blank: FrameState = { runId: '', levelReached: 1, durationMs: 0, score: 0, kills: 0, systems: 0, health: 5, maxHealth: 5, systemsTotal: 0, totalSystems: 0, status: 'idle' };
+const blank: FrameState = { runId: '', mode: 'campaign', levelReached: 1, zonesGenerated: 0, durationMs: 0, score: 0, kills: 0, systems: 0, health: 5, maxHealth: 5, systemsTotal: 0, totalSystems: 0, status: 'idle' };
 const timer = (ms: number) => `${Math.floor(ms / 60000).toString().padStart(2, '0')}:${Math.floor(ms / 1000 % 60).toString().padStart(2, '0')}`;
-const snap = (s: FrameState): ShotRunSnapshot => ({ levelReached: s.levelReached, durationMs: s.durationMs, score: s.score, kills: s.kills, systems: s.totalSystems });
+const snap = (s: FrameState): ShotRunSnapshot => ({ mode: s.mode, levelReached: s.levelReached, zonesGenerated: s.zonesGenerated, durationMs: s.durationMs, score: s.score, kills: s.kills, systems: s.totalSystems });
 
 export function Arcade({ workspace, cloudConnected, online }: Props) {
   const { t, locale } = useDesktopI18n();
@@ -24,6 +24,7 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
   const checkpointAt = useRef(0);
   const [state, setState] = useState<FrameState>(blank);
   const [progress, setProgress] = useState<ShotProgress | null>(null);
+  const [mode, setMode] = useState<ShotGameMode>('campaign');
   const [sector, setSector] = useState(1);
   const [map, setMap] = useState(0);
   const [muted, setMuted] = useState(readSavedMute);
@@ -39,8 +40,8 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
   const configure = useCallback(() => {
     const css = getComputedStyle(document.documentElement);
     const colors = Object.fromEntries(['bg', 'surface', 'overlay', 'purple', 'purple-light', 'red', 'text', 'muted', 'ambient'].map(name => [name, css.getPropertyValue(`--shot-${name}`).trim()]));
-    send('configure', { level: sector, map, colors, locale });
-  }, [locale, map, sector, send]);
+    send('configure', { level: sector, map, mode, colors, locale });
+  }, [locale, map, mode, sector, send]);
   const syncAudio = useCallback(() => send('audio', { muted, volume }), [muted, send, volume]);
   const write = useCallback((work: () => Promise<ShotProgress>) => {
     writes.current = writes.current.then(async () => { setProgress(await work()); }).catch(cause => setError(cause instanceof Error ? cause.message : t('arcade.saveError')));
@@ -105,10 +106,10 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
       if (event.data.type === 'start-request') {
         if (starting.current || live.current.status !== 'idle') return;
         starting.current = true; ending.current = false; setError(null);
-        void window.gorillaPunch.game.start(Number(detail.level) || sector).then(run => {
-          const next = { ...blank, runId: run.id, levelReached: run.startingLevel, status: 'running' as const };
+        void window.gorillaPunch.game.start(mode === 'survival' ? 1 : Number(detail.level) || sector, mode).then(run => {
+          const next = { ...blank, runId: run.id, mode: run.mode, levelReached: run.startingLevel, zonesGenerated: run.zonesGenerated, status: 'running' as const };
           live.current = next; setState(next); checkpointAt.current = 0;
-          send('start', { runId: run.id, level: run.startingLevel, startedAt: run.startedAt });
+          send('start', { runId: run.id, level: run.startingLevel, startedAt: run.startedAt, mode: run.mode });
         }).catch(e => { const message = e instanceof Error ? e.message : t('arcade.startError'); setError(message); send('error', { message }); }).finally(() => { starting.current = false; });
         return;
       }
@@ -128,7 +129,7 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
     };
     window.addEventListener('message', receive);
     return () => window.removeEventListener('message', receive);
-  }, [configure, sector, send, syncAudio, write, t]);
+  }, [configure, mode, sector, send, syncAudio, write, t]);
 
   useEffect(() => () => {
     const s = live.current;
@@ -156,8 +157,11 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
     <section className={`shot-shell${fullscreen ? ' is-fullscreen' : ''}${inRun ? ' has-run' : ''}`} aria-label={t('arcade.gameLabel')}>
       <header className="shot-toolbar">
         <div className="shot-map-pickers">
-          <Dropdown<number> ariaLabel={t('arcade.deploy')} value={sector} disabled={!frameLoaded || inRun} onChange={setSector} options={Array.from({ length: maxSector }, (_, index) => index + 1).map(n => ({ value: n, label: t('arcade.sectorOption', { level: n }) }))}/>
-          <Dropdown<number> ariaLabel={t('arcade.map')} value={map} disabled={!frameLoaded || inRun} onChange={setMap} options={[t('arcade.map1'), t('arcade.map2'), t('arcade.map3')].map((label, value) => ({ value, label }))}/>
+          <Dropdown<ShotGameMode> ariaLabel={t('arcade.mode')} value={mode} disabled={!frameLoaded || inRun} onChange={setMode} options={[{ value: 'campaign', label: t('arcade.campaign') }, { value: 'survival', label: t('arcade.survival') }]}/>
+          {mode === 'campaign' ? <>
+            <Dropdown<number> ariaLabel={t('arcade.deploy')} value={sector} disabled={!frameLoaded || inRun} onChange={setSector} options={Array.from({ length: maxSector }, (_, index) => index + 1).map(n => ({ value: n, label: t('arcade.sectorOption', { level: n }) }))}/>
+            <Dropdown<number> ariaLabel={t('arcade.map')} value={map} disabled={!frameLoaded || inRun} onChange={setMap} options={[t('arcade.map1'), t('arcade.map2'), t('arcade.map3')].map((label, value) => ({ value, label }))}/>
+          </> : <span className="shot-generated-map">{t('arcade.generatedMap')}</span>}
         </div>
         <div className="shot-toolbar-actions">
           <span className={`shot-sync-status ${progress?.sync === 'pending' ? 'pending' : ''}`}>{syncLabel}</span>
@@ -170,13 +174,13 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
           <Tooltip content={t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}><button type="button" className="secondary-btn shot-fullscreen-btn" onClick={() => void toggleFullscreen()} aria-label={t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}>{fullscreen ? <CornersIn size={17}/> : <CornersOut size={17}/>}<span>{t(fullscreen ? 'arcade.exitFullscreen' : 'arcade.fullscreen')}</span></button></Tooltip>
         </div>
       </header>
-      {inRun && <div className="shot-hud" aria-label={t('arcade.statsLabel')}>
-        <div><span>{t('arcade.sector')}</span><strong>{state.levelReached.toString().padStart(2, '0')} <i>/ 03</i></strong></div>
+      {inRun && <div className={`shot-hud${state.mode === 'survival' ? ' is-survival' : ''}`} aria-label={t('arcade.statsLabel')}>
+        <div><span>{state.mode === 'survival' ? t('arcade.zones') : t('arcade.sector')}</span><strong>{state.mode === 'survival' ? state.zonesGenerated.toLocaleString(locale) : <>{state.levelReached.toString().padStart(2, '0')} <i>/ 03</i></>}</strong></div>
         <div><span>{t('arcade.health')}</span><strong className="shot-health">{'♥'.repeat(Math.max(0, state.health))}<i>{'♥'.repeat(Math.max(0, state.maxHealth - state.health))}</i></strong></div>
-        <div><span>{t('arcade.timeAlive')}</span><strong>{timer(state.durationMs)}</strong></div>
+        <div><span>{t(state.mode === 'survival' ? 'arcade.timeSurvived' : 'arcade.timeAlive')}</span><strong>{timer(state.durationMs)}</strong></div>
         <div><span>{t('arcade.score')}</span><strong>{state.score.toLocaleString(locale)}</strong></div>
-        <div><span>{t('arcade.enemies')}</span><strong>{state.kills.toLocaleString(locale)}</strong></div>
-        <div><span>{t('arcade.systems')}</span><strong>{state.systems.toLocaleString(locale)} <i>/ {state.systemsTotal.toLocaleString(locale)}</i></strong></div>
+        <div><span>{t('arcade.kills')}</span><strong>{state.kills.toLocaleString(locale)}</strong></div>
+        {state.mode !== 'survival' && <div><span>{t('arcade.systems')}</span><strong>{state.systems.toLocaleString(locale)} <i>/ {state.systemsTotal.toLocaleString(locale)}</i></strong></div>}
       </div>}
       <div className="shot-frame-wrap">
         <iframe ref={frame} title={t('arcade.arena')} src="./gorilla-shot/index.html" allow="autoplay; fullscreen" allowFullScreen tabIndex={0} onLoad={() => { configure(); syncAudio(); }}/>
@@ -192,7 +196,7 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
         <div className="shot-stat-card"><span>{t('arcade.totalTime')}</span><strong>{timer(progress?.stats.totalTimeMs || 0)}</strong></div>
         <div className="shot-stat-card"><span>{t('arcade.runsClears')}</span><strong>{(progress?.stats.runs || 0).toLocaleString(locale)} / {(progress?.stats.clears || 0).toLocaleString(locale)}</strong></div>
       </div>
-      <div className="shot-recent"><strong>{t('arcade.recentRuns')}</strong>{progress?.recentRuns.length ? <ol>{progress.recentRuns.slice(0, 5).map(run => <li key={run.id}><span className={run.status === 'cleared' ? 'cleared' : ''}>{t(run.status === 'cleared' ? 'arcade.cleared' : run.status === 'abandoned' ? 'arcade.abandoned' : 'arcade.failed')}</span><span>{t('arcade.runLabel', { level: run.levelReached })}</span><span>{timer(run.durationMs)}</span><strong>{run.score.toLocaleString(locale)} {t('arcade.points')}</strong></li>)}</ol> : <p>{t('arcade.firstRecord')}</p>}</div>
+      <div className="shot-recent"><strong>{t('arcade.recentRuns')}</strong>{progress?.recentRuns.length ? <ol>{progress.recentRuns.slice(0, 5).map(run => <li key={run.id}><span className={run.status === 'cleared' ? 'cleared' : ''}>{t(run.status === 'cleared' ? 'arcade.cleared' : run.status === 'abandoned' ? 'arcade.abandoned' : 'arcade.failed')}</span><span>{run.mode === 'survival' ? t('arcade.survivalRunLabel', { zones: run.zonesGenerated }) : t('arcade.runLabel', { level: run.levelReached })}</span><span>{timer(run.durationMs)}</span><strong>{run.score.toLocaleString(locale)} {t('arcade.points')}</strong></li>)}</ol> : <p>{t('arcade.firstRecord')}</p>}</div>
     </section>
   </div>;
 }

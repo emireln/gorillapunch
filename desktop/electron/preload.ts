@@ -73,7 +73,7 @@ const api: DesktopAPI = {
   },
   game: {
     progress: () => ipcRenderer.invoke('game:progress'),
-    start: level => ipcRenderer.invoke('game:start', level),
+    start: (level, mode) => ipcRenderer.invoke('game:start', level, mode),
     checkpoint: (runId, snapshot) => ipcRenderer.invoke('game:checkpoint', runId, snapshot),
     finish: (runId, outcome, snapshot) => ipcRenderer.invoke('game:finish', runId, outcome, snapshot),
     sync: () => ipcRenderer.invoke('game:sync'),

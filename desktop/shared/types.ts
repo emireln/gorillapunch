@@ -72,6 +72,7 @@ export interface CloudState {
 }
 
 export type ShotRunStatus = 'active' | 'failed' | 'cleared' | 'abandoned';
+export type ShotGameMode = 'campaign' | 'survival';
 
 export interface ShotRun {
   id: string;
@@ -80,15 +81,17 @@ export interface ShotRun {
   updatedAt: string;
   finishedAt: string | null;
   status: ShotRunStatus;
+  mode: ShotGameMode;
   startingLevel: number;
   levelReached: number;
+  zonesGenerated: number;
   durationMs: number;
   score: number;
   kills: number;
   systems: number;
 }
 
-export type ShotRunSnapshot = Pick<ShotRun, 'levelReached' | 'durationMs' | 'score' | 'kills' | 'systems'>;
+export type ShotRunSnapshot = Pick<ShotRun, 'mode' | 'levelReached' | 'zonesGenerated' | 'durationMs' | 'score' | 'kills' | 'systems'>;
 export type ShotRunRecord = Omit<ShotRun, 'accountId'>;
 
 export interface ShotStats {
@@ -210,7 +213,7 @@ export interface DesktopAPI {
   };
   game: {
     progress(): Promise<ShotProgress>;
-    start(level: number): Promise<ShotRun>;
+    start(level: number, mode: ShotGameMode): Promise<ShotRun>;
     checkpoint(runId: string, snapshot: ShotRunSnapshot): Promise<ShotProgress>;
     finish(runId: string, outcome: 'failed' | 'cleared' | 'abandoned', snapshot: ShotRunSnapshot): Promise<ShotProgress>;
     sync(): Promise<ShotProgress>;
