@@ -381,9 +381,9 @@ game_tick = function() {
 		if (!shot.active) break;
 	}
 	if (!shot.active) return;
-	camera_x = camera_x * 0.92 - entity_player.x * 0.08;
-	camera_y = camera_y * 0.92 - entity_player.y * 0.08;
-	camera_z = camera_z * 0.92 - entity_player.z * 0.08;
+	camera_x = camera_x * 0.86 - entity_player.x * 0.14;
+	camera_y = camera_y * 0.86 - entity_player.y * 0.14;
+	camera_z = camera_z * 0.86 - entity_player.z * 0.14;
 	camera_shake *= 0.9;
 	camera_x += camera_shake * (_math.random() - 0.5);
 	camera_z += camera_shake * (_math.random() - 0.5);

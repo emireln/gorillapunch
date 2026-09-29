@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CloudArrowUp, CornersIn, CornersOut, Pause, Play, SpeakerHigh, SpeakerSlash } from '@phosphor-icons/react';
+import { CloudArrowUp, CornersIn, CornersOut, Pause, Play, SpeakerHigh, SpeakerSlash, X } from '@phosphor-icons/react';
 import type { ShotGameMode, ShotProgress, ShotRunSnapshot, WorkspaceMode } from '../../shared/types';
 import { Dropdown } from '../components/Dropdown';
 import { Tooltip } from '../components/Tooltip';
@@ -155,6 +155,7 @@ export function Arcade({ workspace, cloudConnected, online }: Props) {
       <div><h1>{t('arcade.title')}</h1></div>
     </div>
     <section className={`shot-shell${fullscreen ? ' is-fullscreen' : ''}${inRun ? ' has-run' : ''}`} aria-label={t('arcade.gameLabel')}>
+      {fullscreen && <button type="button" className="shot-fullscreen-close" aria-label={t('arcade.exitFullscreen')} title={t('arcade.exitFullscreen')} onClick={() => void toggleFullscreen()}><X size={21}/></button>}
       <header className="shot-toolbar">
         <div className="shot-map-pickers">
           <Dropdown<ShotGameMode> ariaLabel={t('arcade.mode')} value={mode} disabled={!frameLoaded || inRun} onChange={setMode} options={[{ value: 'campaign', label: t('arcade.campaign') }, { value: 'survival', label: t('arcade.survival') }]}/>

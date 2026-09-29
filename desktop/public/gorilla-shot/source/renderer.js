@@ -1,5 +1,5 @@
 var
-	gl = c.getContext('webgl', { antialias: true, powerPreference: 'high-performance' }) || c.getContext('experimental-webgl', { antialias: true, powerPreference: 'high-performance' }),
+	gl = c.getContext('webgl', { antialias: false, powerPreference: 'high-performance' }) || c.getContext('experimental-webgl', { antialias: false, powerPreference: 'high-performance' }),
 	vertex_buffer,
 	shader_program,
 
@@ -126,8 +126,8 @@ function renderer_bind_image(image) {
 	var texture_2d = gl.TEXTURE_2D;
 	gl.bindTexture(texture_2d, gl.createTexture());
 	gl.texImage2D(texture_2d, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-	gl.texParameteri(texture_2d, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-	gl.texParameteri(texture_2d, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+	gl.texParameteri(texture_2d, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+	gl.texParameteri(texture_2d, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 	gl.texParameteri(texture_2d, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 	gl.texParameteri(texture_2d, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 }
@@ -135,8 +135,7 @@ function renderer_bind_image(image) {
 function renderer_resize_canvas() {
 	var bounds = c.getBoundingClientRect();
 	if (!bounds.width || !bounds.height) return;
-	var ratio = _math.min(_math.max(window.devicePixelRatio || 1, 1), 2);
-	var scale = _math.min(ratio, 2560 / bounds.width, 1440 / bounds.height);
+	var scale = _math.min(1, 640 / bounds.width, 360 / bounds.height);
 	var width = _math.max(1, _math.round(bounds.width * scale));
 	var height = _math.max(1, _math.round(bounds.height * scale));
 	if (c.width === width && c.height === height) return;
@@ -157,7 +156,7 @@ function renderer_prepare_frame() {
 }
 
 function renderer_end_frame() {
-	gl.uniform3f(camera_uniform, camera_x, camera_y - 10, camera_z - 22);
+	gl.uniform3f(camera_uniform, camera_x, camera_y + 10, camera_z - 22);
 	gl.uniform1fv(light_uniform, light_data);
 	gl.uniform3fv(ambient_uniform, shot_palette.ambient);
 	gl.uniform3fv(purple_uniform, shot_palette.purple);

@@ -14,7 +14,7 @@ class entity_player_t extends entity_t {
 
 		// rotation - select appropriate sprite
 		var angle = _math.atan2(
-			mouse_y - (-34 + c.height * 0.8),
+			mouse_y - c.height * 0.5,
 			mouse_x - (t.x + 6 + camera_x + c.width * 0.5)
 		);
 		t.s = 18 + ((angle / _math.PI * 4 + 10.5) % 8)|0;

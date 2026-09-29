@@ -35,6 +35,11 @@ export function App() {
 
   useEffect(() => { activeView.current = view; }, [view]);
 
+  useEffect(() => {
+    const content = document.querySelector('main');
+    if (content) content.scrollTop = 0;
+  }, [view]);
+
   const notify = useCallback((message: string, tone: 'success' | 'error' = 'success') => {
     const id = Date.now() + Math.random();
     setToasts(current => [...current, { id, message: errorMessage(message), tone }]);
