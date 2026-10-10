@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { DesktopReport, DesktopScan, DesktopScreenshot, DesktopSettings, ShotRun, WatchProject } from '../shared/types';
+import type { DesktopReport, DesktopScan, DesktopScreenshot, DesktopSettings, WatchProject } from '../shared/types';
 
 const defaults: DesktopSettings = {
   workspace: 'local',
@@ -76,16 +76,10 @@ export class DesktopDatabase {
         id TEXT PRIMARY KEY,
         body TEXT NOT NULL CHECK(json_valid(body))
       );
-      CREATE TABLE IF NOT EXISTS desktop_shot_runs (
-        id TEXT PRIMARY KEY,
-        body TEXT NOT NULL CHECK(json_valid(body)),
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS desktop_shot_runs_date ON desktop_shot_runs(created_at DESC);
     `);
+    await this.client.execute('DROP TABLE IF EXISTS desktop_shot_runs');
+    await this.client.execute("DELETE FROM desktop_settings WHERE key='gorilla_shot_device_id' OR substr(key,1,length('gorilla_shot_cloud_'))='gorilla_shot_cloud_'");
     await this.recoverInterruptedScans();
-    await this.recoverInterruptedShotRuns();
   }
 
   private async recoverInterruptedScans() {
@@ -97,19 +91,6 @@ export class DesktopDatabase {
         sql: 'UPDATE desktop_scans SET body=?,status=? WHERE id=?',
         args: [JSON.stringify(recovered), recovered.status, recovered.id],
       });
-    }
-  }
-
-  private async recoverInterruptedShotRuns() {
-    const rows = await this.client.execute('SELECT id,body FROM desktop_shot_runs');
-    for (const row of rows.rows) {
-      let run: ShotRun;
-      try { run = JSON.parse(String(row.body)) as ShotRun; }
-      catch { continue; }
-      if (run.status !== 'active') continue;
-      const now = new Date().toISOString();
-      const recovered: ShotRun = { ...run, status: 'abandoned', finishedAt: now, updatedAt: now };
-      await this.client.execute({ sql: 'UPDATE desktop_shot_runs SET body=?,updated_at=? WHERE id=?', args: [JSON.stringify(recovered), now, String(row.id)] });
     }
   }
 
@@ -251,60 +232,7 @@ export class DesktopDatabase {
     await this.client.execute({ sql: 'DELETE FROM desktop_watchers WHERE id=?', args: [id] });
   }
 
-  async shotDeviceId(): Promise<string> {
-    await this.ready;
-    const saved = await this.getValue('gorilla_shot_device_id');
-    if (saved && /^[0-9a-f-]{36}$/i.test(saved)) return saved;
-    const id = randomUUID();
-    await this.setValue('gorilla_shot_device_id', id);
-    return id;
-  }
-
-  async shotRuns(): Promise<ShotRun[]> {
-    await this.ready;
-    const result = await this.client.execute('SELECT body FROM desktop_shot_runs ORDER BY created_at DESC');
-    return result.rows.flatMap(row => {
-      try { return [normalizeShotRun(JSON.parse(String(row.body)))]; }
-      catch { return []; }
-    });
-  }
-
-  async shotRun(id: string): Promise<ShotRun | null> {
-    await this.ready;
-    const result = await this.client.execute({ sql: 'SELECT body FROM desktop_shot_runs WHERE id=?', args: [id] });
-    if (!result.rows.length) return null;
-    try { return normalizeShotRun(JSON.parse(String(result.rows[0].body))); }
-    catch { return null; }
-  }
-
-  async saveShotRun(run: ShotRun): Promise<ShotRun> {
-    await this.ready;
-    await this.client.execute({
-      sql: 'INSERT INTO desktop_shot_runs(id,body,created_at,updated_at) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body,updated_at=excluded.updated_at',
-      args: [run.id, JSON.stringify(run), run.startedAt, run.updatedAt],
-    });
-    return run;
-  }
-
-  async claimAnonymousShotRuns(accountId: string) {
-    await this.ready;
-    const runs = await this.shotRuns();
-    for (const run of runs) {
-      if (run.accountId !== null) continue;
-      await this.saveShotRun({ ...run, accountId, updatedAt: new Date().toISOString() });
-    }
-  }
-
   async close() { await this.client.close(); }
-}
-
-function normalizeShotRun(value: unknown): ShotRun {
-  const run = value as ShotRun;
-  return {
-    ...run,
-    mode: run.mode === 'survival' ? 'survival' : 'campaign',
-    zonesGenerated: Number.isSafeInteger(run.zonesGenerated) && run.zonesGenerated >= 0 ? Math.min(run.zonesGenerated, 1_000_000) : 0,
-  };
 }
 
 export function sanitizeSettings(current: DesktopSettings, patch: Partial<DesktopSettings>): DesktopSettings {

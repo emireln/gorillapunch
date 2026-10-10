@@ -8,9 +8,8 @@ import { History } from './views/History';
 import { Watchers } from './views/Watchers';
 import { Settings } from './views/Settings';
 import { ReportView } from './views/Report';
-import { Arcade } from './views/Arcade';
 import { GorillaAI } from './views/GorillaAI';
-import { errorMessage, type ScanItem } from './utils';
+import { clearRetiredArcadePreferences, errorMessage, type ScanItem } from './utils';
 import { useDesktopI18n } from './i18n';
 import { Tooltip } from './components/Tooltip';
 
@@ -32,6 +31,8 @@ export function App() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('gp-sidebar-collapsed') === 'true');
   const activeView = useRef(view);
+
+  useEffect(() => { clearRetiredArcadePreferences(window.localStorage); }, []);
 
   useEffect(() => { activeView.current = view; }, [view]);
 
@@ -169,7 +170,6 @@ export function App() {
       {view === 'history' && <History items={items} onOpen={item => void openReport(item)}/>}
       {view === 'watchers' && <Watchers watchers={watchers} onAdd={addWatcher} onUpdate={updateWatcher} onRemove={removeWatcher}/>}
       {view === 'ai' && <GorillaAI notify={notify} onSettings={() => setView('settings')}/>}
-      {view === 'arcade' && <Arcade workspace={settings.workspace} cloudConnected={cloud.authenticated} online={online}/>}
       {view === 'settings' && <Settings settings={settings} cloud={cloud} pendingCount={localHistory.filter(scan => scan.storage === 'cloud' && scan.status === 'completed' && !scan.synced_at).length} onSyncPending={syncPending} onSettings={updateSettings} onAvatar={setCloud} onCloud={state => { setCloud(state); if (state.authenticated) { void updateSettings({ workspace: 'cloud', autoSync: true }); void refreshCloud(state); } else { setCloudHistory([]); void updateSettings({ workspace: 'local' }); } }} notify={notify}/>}
       {view === 'report' && (loadingReport ? <div className="view loading-view">{t('app.loadingReport')}</div> : report ? <ReportView key={report.scan.id} report={report} source={reportSource} canSync={cloud.authenticated && online} onBack={() => setView('history')} onDelete={deleteReport} onSync={syncReport} notify={notify}/> : <div className="view empty-panel">{t('app.reportUnavailable')}</div>)}
     </main></div>

@@ -1,9 +1,9 @@
-import { Binoculars, Brain, CaretDoubleLeft, CaretDoubleRight, ClockCounterClockwise, Gear, House, HardDrives, CloudArrowUp, GameController, type Icon } from '@phosphor-icons/react';
+import { Binoculars, Brain, CaretDoubleLeft, CaretDoubleRight, ClockCounterClockwise, Gear, House, HardDrives, CloudArrowUp, type Icon } from '@phosphor-icons/react';
 import type { CloudState, WorkspaceMode } from '../../shared/types';
 import { Tooltip } from './Tooltip';
 import { useDesktopI18n } from '../i18n';
 
-export type View = 'dashboard' | 'history' | 'watchers' | 'ai' | 'settings' | 'report' | 'arcade';
+export type View = 'dashboard' | 'history' | 'watchers' | 'ai' | 'settings' | 'report';
 export function Sidebar({ view, setView, workspace, cloud, collapsed, onToggle }: { view: View; setView(view: View): void; workspace: WorkspaceMode; cloud: CloudState | null; collapsed: boolean; onToggle(): void }) {
   const { t } = useDesktopI18n();
   const items: { id: View; label: string; icon: Icon }[] = [
@@ -21,7 +21,6 @@ export function Sidebar({ view, setView, workspace, cloud, collapsed, onToggle }
       return collapsed ? <Tooltip key={item.id} content={item.label}>{button}</Tooltip> : button;
     })}</nav>
     <div className="sidebar-spacer"/>
-    {(() => { const link = <button className={`sidebar-arcade-link ${view === 'arcade' ? 'active' : ''}`} aria-label={collapsed ? t('nav.game') : undefined} aria-current={view === 'arcade' ? 'page' : undefined} onClick={() => setView('arcade')}><GameController size={18}/><span>{t('nav.game')}</span></button>; return collapsed ? <Tooltip content={t('nav.game')}>{link}</Tooltip> : link; })()}
     <div className="workspace-card">{workspace === 'local' ? <HardDrives size={20}/> : <CloudArrowUp size={20}/>}<div><strong>{workspace === 'local' ? t('nav.local') : t('nav.cloud')}</strong><span>{workspace === 'local' ? t('nav.localSaved') : cloud?.authenticated ? cloud.email : t('nav.signInSettings')}</span></div></div>
     <div className="shortcut-hint"><kbd>Ctrl</kbd><kbd>K</kbd><span>{t('nav.quickPunch')}</span></div>
   </aside>;

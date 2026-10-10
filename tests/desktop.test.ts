@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { createClient } from '@libsql/client';
+import { mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { DesktopDatabase, sanitizeSettings } from '../desktop/electron/database';
@@ -11,6 +12,36 @@ afterEach(async () => {
 });
 
 describe('desktop local workspace', () => {
+  it('removes retired game data from an existing local database', async () => {
+    const userData = await mkdtemp(join(tmpdir(), 'gorillapunch-desktop-'));
+    temporary.push(userData);
+    const dataDirectory = join(userData, 'data');
+    await mkdir(dataDirectory, { recursive: true });
+    const databaseUrl = `file:${join(dataDirectory, 'gorillapunch.db').replaceAll('\\', '/')}`;
+    const oldClient = createClient({ url: databaseUrl });
+    await oldClient.executeMultiple(`
+      CREATE TABLE desktop_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE desktop_shot_runs (id TEXT PRIMARY KEY, body TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+      INSERT INTO desktop_settings(key,value) VALUES
+        ('gorilla_shot_device_id','device-id'),
+        ('gorilla_shot_cloud_account-1','cached-progress'),
+        ('other_setting','keep-me');
+      INSERT INTO desktop_shot_runs(id,body,created_at,updated_at) VALUES('run-1','{}','2026-10-01','2026-10-01');
+    `);
+    await oldClient.close();
+
+    const database = new DesktopDatabase(userData);
+    expect(await database.getValue('gorilla_shot_device_id')).toBeNull();
+    expect(await database.getValue('gorilla_shot_cloud_account-1')).toBeNull();
+    expect(await database.getValue('other_setting')).toBe('keep-me');
+
+    const inspectionClient = createClient({ url: databaseUrl });
+    const runTable = await inspectionClient.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='desktop_shot_runs'");
+    expect(runTable.rows).toEqual([]);
+    await inspectionClient.close();
+    await database.close();
+  });
+
   it('creates SQLite storage from a clean application-data directory', async () => {
     const userData = await mkdtemp(join(tmpdir(), 'gorillapunch-desktop-'));
     temporary.push(userData);
@@ -34,6 +65,20 @@ describe('desktop local workspace', () => {
 });
 
 describe('desktop user feedback', () => {
+  it('removes retired game preferences while preserving unrelated renderer storage', async () => {
+    const values = new Map([
+      ['gp-shot-volume', '0.5'],
+      ['gp-shot-muted', 'true'],
+      ['gp-sidebar-collapsed', 'false'],
+    ]);
+    const storage: Pick<Storage, 'removeItem'> = { removeItem: key => { values.delete(key); } };
+    const utilities = await import('../desktop/src/utils') as unknown as {
+      clearRetiredArcadePreferences?: (storage: Pick<Storage, 'removeItem'>) => void;
+    };
+    utilities.clearRetiredArcadePreferences?.(storage);
+    expect([...values]).toEqual([['gp-sidebar-collapsed', 'false']]);
+  });
+
   it('preserves notification strings instead of replacing them with a generic error', () => {
     expect(errorMessage('Account connected. Cloud sync is ready.')).toBe('Account connected. Cloud sync is ready.');
   });

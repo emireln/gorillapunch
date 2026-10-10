@@ -84,13 +84,6 @@ const api: DesktopAPI = {
     installUpdate: () => ipcRenderer.invoke('system:install-update'),
     onUpdateState: callback => listen<DesktopUpdateState>('system:update-state', callback),
   },
-  game: {
-    progress: () => ipcRenderer.invoke('game:progress'),
-    start: (level, mode) => ipcRenderer.invoke('game:start', level, mode),
-    checkpoint: (runId, snapshot) => ipcRenderer.invoke('game:checkpoint', runId, snapshot),
-    finish: (runId, outcome, snapshot) => ipcRenderer.invoke('game:finish', runId, outcome, snapshot),
-    sync: () => ipcRenderer.invoke('game:sync'),
-  },
 };
 
 contextBridge.exposeInMainWorld('gorillaPunch', api);

@@ -3,6 +3,11 @@ import { translate, type DesktopLocale, type Translate } from './i18n';
 
 export interface ScanItem { scan: DesktopScan; source: WorkspaceMode }
 
+export function clearRetiredArcadePreferences(storage: Pick<Storage, 'removeItem'>) {
+  storage.removeItem('gp-shot-volume');
+  storage.removeItem('gp-shot-muted');
+}
+
 export function host(value: string) {
   try { return new URL(value).host; } catch { return value; }
 }

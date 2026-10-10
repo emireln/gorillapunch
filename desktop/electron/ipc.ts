@@ -1,11 +1,10 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
-import type { AIChat, AIChatMessage, AIConfigureProvider, AIProvider, CloudCredentials, DesktopSettings, DesktopUpdateState, IpcActionResult, SignUpCredentials, WatchProject, WorkspaceMode, ExportFormat, ShotGameMode, ShotRunSnapshot } from '../shared/types';
+import type { AIChat, AIChatMessage, AIConfigureProvider, AIProvider, CloudCredentials, DesktopSettings, DesktopUpdateState, IpcActionResult, SignUpCredentials, WatchProject, WorkspaceMode, ExportFormat } from '../shared/types';
 import type { DesktopDatabase } from './database';
 import { sanitizeSettings } from './database';
 import type { CloudService } from './cloud';
 import type { ScanManager } from './scanner';
 import type { WatcherService } from './watchers';
-import type { ShotService } from './shot';
 import type { GorillaAIService } from './gorilla-ai';
 import { detectLocalServers } from './servers';
 import { exportReport } from './exports';
@@ -16,7 +15,6 @@ interface Services {
   window: BrowserWindow;
   database: DesktopDatabase;
   cloud: CloudService;
-  shot: ShotService;
   ai: GorillaAIService;
   scans: ScanManager;
   watchers: WatcherService;
@@ -128,12 +126,6 @@ export function registerIpc(services: Services) {
   handle('system:get-update-state', () => services.getUpdateState());
   handle('system:download-update', () => services.downloadUpdate());
   handle('system:install-update', () => services.installUpdate());
-  handle('game:progress', () => services.shot.progress());
-  handle<[number, ShotGameMode]>('game:start', (_event, level, mode) => services.shot.start(level, mode));
-  handle<[string, ShotRunSnapshot]>('game:checkpoint', (_event, id, snapshot) => services.shot.checkpoint(uuid(id), snapshot));
-  handle<[string, 'failed' | 'cleared' | 'abandoned', ShotRunSnapshot]>('game:finish', (_event, id, outcome, snapshot) => services.shot.finish(uuid(id), outcome, snapshot));
-  handle('game:sync', () => services.shot.sync());
-
   const send = (channel: string, value: unknown) => { if (!services.window.isDestroyed()) services.window.webContents.send(channel, value); };
   services.scans.on('progress', value => send('scans:progress', value));
   services.scans.on('complete', value => send('scans:complete', value));
